@@ -6,33 +6,36 @@ Passionate about software architecture, database engineering, and local AI agent
 ---
 
 ### 🚀 Current Mission
-I am currently building two major platforms to address personal finance and shared student housing:
+🎓 **CSE Student at AIUB**
 
-- 💰 **Takaa**: An AI-assisted personal expense management platform focused on personal finance workflows (expense logs, loan ledgers, sub tracking).
-- 🏠 **Domira**: A full-stack PropTech platform introducing a student-oriented leasing ecosystem through a House Captain model for shared housing management.
+Building two production-oriented software platforms:
+- 💰 **Takaa**: A local-first finance platform featuring transaction automation, subscription tracking, loan management, and SMS-based expense ingestion.
+- 🏠 **Domira**: A PropTech platform implementing a unique House Captain leasing model for student accommodation management.
 
-**📚 Current Learning**: React Native, Oracle SQL, C#, AI Agent Development.  
-**🎯 2026 Goals**: Release Takaa MVP, Launch Domira beta, Build AI-powered developer workflows, Contribute to open-source.
+**📚 Currently Learning**: React Native, Oracle SQL, C#, AI Agent Development.  
+**🎯 2026 Goals**: Release Takaa MVP, Launch Domira Beta, Expand AI-powered workflows, Contribute to Open Source.
 
 ---
 
 ### 🏗️ Project Portfolio
 <!-- START_PORTFOLIO -->
-### Takaa
-Progress: `████░░░░░░ 42%`
-**Current Milestone**: MVP Release Q4 2026
-Current Focus:
-- Mobile UI
-- Validation Rules
-- Expense Workflows
+### 💰 Takaa
+- **Modules Implemented**: 7
+- **Major Features Remaining**: 3
+- **Current Milestone**: MVP Release Q4 2026
+- **Current Focus**:
+  - AI-powered transaction categorization
+  - Receipt OCR
+  - Production deployment pipeline
 
-### Domira
-Progress: `█████░░░░░ 50%`
-**Current Milestone**: Beta Launch Q3 2026
-Current Focus:
-- Leasing System
-- Role Management
-- Property Availability Logic
+### 🏠 Domira
+- **Systems Implemented**: 9
+- **Major Features Remaining**: 3
+- **Current Milestone**: Beta Launch Q3 2026
+- **Current Focus**:
+  - Payment gateway integration
+  - Automated invoicing
+  - Interactive map search
 
 <!-- END_PORTFOLIO -->
 
@@ -143,15 +146,38 @@ No recent public commits found.
 ### 🌟 Featured Projects
 
 #### 💰 Takaa
-AI-assisted expense management platform focused on personal finance workflows.
-- **Key Features**: Expense tracking, subscription management, loan tracking, financial insights, future AI categorization.
-- **Goal**: MVP Release Q4 2026.
-- **Tech Stack**: React Native + Expo + TypeScript + NativeWind + Zustand.
+AI-assisted personal finance platform built with a local-first architecture.
+- **Implemented**:
+  - SQLite-based offline storage
+  - Transaction engine & account reconciliation
+  - Loan and lending ledger
+  - Subscription management system
+  - SMS transaction ingestion pipeline
+  - NLP-based expense categorization
+  - Analytics, budgeting, goals, and reporting dashboards
+- **Currently Working On**:
+  - AI-powered transaction categorization
+  - Receipt OCR
+  - Production deployment pipeline
+- **Tech Focus**: TypeScript • Expo • SQLite • NLP • Financial Systems
 
 #### 🏠 Domira
-Production-oriented PropTech platform designed for renting and buying homes.
-- **Key Features**: Student-focused housing ecosystem, Landlord ➔ House Captain ➔ Tenant leasing model, room-level capacity management, gender-matched student housing, automated lease dependency handling, secure file uploads.
-- **Tech Stack**: React + Vite + TypeScript + Tailwind CSS + Zustand (Frontend), Node.js + Express (Backend), PostgreSQL (Database), Docker + Nginx (DevOps).
+Production-oriented PropTech platform focused on student housing and shared accommodation management.
+- **Implemented**:
+  - Multi-role authentication system
+  - Field-level encryption for sensitive data
+  - House Captain leasing model
+  - Room-level capacity management
+  - Gender-matching enforcement
+  - Lease dependency automation
+  - Property search and availability workflows
+  - Messaging, reviews, and meetup scheduling
+  - Dockerized deployment stack
+- **Currently Working On**:
+  - Payment gateway integration
+  - Automated invoicing
+  - Interactive map search
+- **Tech Focus**: React • Node.js • PostgreSQL • Docker • Security Engineering
 
 ---
 

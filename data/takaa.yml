@@ -1,49 +1,63 @@
 projects:
   Takaa:
+    label_completed: "Modules Implemented"
+    label_remaining: "Major Features Remaining"
     milestone: "MVP Release Q4 2026"
     features:
-      - name: "Expense Logic"
+      - name: "SQLite-based offline storage"
         completed: true
-      - name: "Loan Rules"
+      - name: "Transaction engine & account reconciliation"
         completed: true
-      - name: "Subscription Tracking"
+      - name: "Loan and lending ledger"
         completed: true
-      - name: "Mobile UI"
-        completed: false
-      - name: "AI Categorization"
+      - name: "Subscription management system"
+        completed: true
+      - name: "SMS transaction ingestion pipeline"
+        completed: true
+      - name: "NLP-based expense categorization"
+        completed: true
+      - name: "Analytics, budgeting, goals, and reporting dashboards"
+        completed: true
+      - name: "AI-powered transaction categorization"
         completed: false
       - name: "Receipt OCR"
         completed: false
-      - name: "Public Beta"
+      - name: "Production deployment pipeline"
         completed: false
     focus:
-      - "Mobile UI"
-      - "Validation Rules"
-      - "Expense Workflows"
+      - "AI-powered transaction categorization"
+      - "Receipt OCR"
+      - "Production deployment pipeline"
   Domira:
+    label_completed: "Systems Implemented"
+    label_remaining: "Major Features Remaining"
     milestone: "Beta Launch Q3 2026"
     features:
-      - name: "Property Listings"
+      - name: "Multi-role authentication system"
         completed: true
-      - name: "Search & Filtering"
+      - name: "Field-level encryption for sensitive data"
         completed: true
-      - name: "User Auth & JWT"
+      - name: "House Captain leasing model"
         completed: true
-      - name: "Field-level Encryption"
+      - name: "Room-level capacity management"
         completed: true
-      - name: "Leasing System"
-        completed: false
-      - name: "Role Management"
-        completed: false
-      - name: "Property Availability Logic"
-        completed: false
-      - name: "Payments Integration"
-        completed: false
-      - name: "Reviews System"
-        completed: false
-      - name: "Docker/Nginx Setup"
+      - name: "Gender-matching enforcement"
         completed: true
+      - name: "Lease dependency automation"
+        completed: true
+      - name: "Property search and availability workflows"
+        completed: true
+      - name: "Messaging, reviews, and meetup scheduling"
+        completed: true
+      - name: "Dockerized deployment stack"
+        completed: true
+      - name: "Payment gateway integration"
+        completed: false
+      - name: "Automated invoicing"
+        completed: false
+      - name: "Interactive map search"
+        completed: false
     focus:
-      - "Leasing System"
-      - "Role Management"
-      - "Property Availability Logic"
+      - "Payment gateway integration"
+      - "Automated invoicing"
+      - "Interactive map search"

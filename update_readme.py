@@ -137,15 +137,16 @@ def process_project_portfolio(projects):
     for name, data in projects.items():
         features = data.get("features", [])
         completed = sum(1 for f in features if f.get("completed"))
-        total = len(features) if features else 1
-        bar = render_progress_bar(completed, total, length=10)
+        remaining = sum(1 for f in features if not f.get("completed"))
         
-        lines.append(f"### {name}")
-        lines.append(f"Progress: {bar}")
-        lines.append(f"**Current Milestone**: {data.get('milestone', 'MVP')}")
-        lines.append("Current Focus:")
+        emoji = "💰" if name == "Takaa" else "🏠"
+        lines.append(f"### {emoji} {name}")
+        lines.append(f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")
+        lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")
+        lines.append(f"- **Current Milestone**: {data.get('milestone', 'MVP')}")
+        lines.append("- **Current Focus**:")
         for item in data.get("focus", []):
-            lines.append(f"- {item}")
+            lines.append(f"  - {item}")
         lines.append("")
     return "\n".join(lines)
 
