@@ -72,7 +72,7 @@ Full-Stack Software Engineer & Mobile Application Developer specializing in robu
 ### 📫 Connect with Me
 - 💼 **LinkedIn**: [linkedin.com/in/mdbadrudduzaalif](https://www.linkedin.com/in/mdbadrudduzaalif) *(Update link if different)*
 - ✉️ **Email**: [alif.badrudduza@gmail.com](mailto:alif.badrudduza@gmail.com) *(Update email if different)*
-- 🌐 **Portfolio**: [mdbadrudduzaalif.github.io](https://mdbadrudduzaalif.github.io) *(Update if you host your portfolio)*
+- 🌐 **Portfolio**: [mdbadrudduzaalif.github.io/eportfolio](https://mdbadrudduzaalif.github.io/eportfolio/index.html)
 
 ---
 
