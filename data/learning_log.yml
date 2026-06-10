@@ -1,16 +1,35 @@
 skills:
   SQL:
-    - "SELECT"
-    - "WHERE"
-    - "GROUP BY"
-    - "JOINS"
+    completed:
+      - "SELECT"
+      - "WHERE"
+      - "GROUP BY"
+      - "JOINS"
+    in_progress:
+      - "Subqueries"
+    planned:
+      - "Stored Procedures"
+      - "Triggers"
   React Native:
-    - "Expo"
-    - "Navigation"
-    - "State Management"
+    completed:
+      - "Expo"
+    in_progress:
+      - "Navigation"
+      - "State Management"
+    planned:
+      - "API Integration"
+      - "Authentication"
+      - "Offline Storage"
   C#:
-    - "OOP"
-    - "Classes"
+    completed:
+      - "Classes"
+    in_progress:
+      - "Constructors"
+      - "Inheritance"
+    planned:
+      - "Polymorphism"
+      - "Interfaces"
+      - "LINQ"
 
 log:
   - date: "2026-06-10"

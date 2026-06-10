@@ -1,34 +1,40 @@
-# 👋 Hi, I'm Alif
+# 👋 Hi, I'm Md Badrudduza Alif
 
 🎓 **Computer Science & Engineering Student** at AIUB (American International University-Bangladesh)  
-Passionate about mobile application development, database management, and local AI agent ecosystems.
+Passionate about software architecture, database engineering, and local AI agent ecosystems.
 
 ---
 
 ### 🚀 Current Mission
-I am building **Takaa**, an AI-assisted personal expense management platform designed to help students and developers track cash flows, manage recurring subscriptions, audit loan terms, and experiment with intelligent local classifications.
-- **Focus Areas**: Expense categorization, subscription rules, loan ledgers, and OCR receipts.
-- **Target**: MVP release planned for **Q4 2026**.
+I am currently building two major platforms to address personal finance and shared student housing:
+
+- 💰 **Takaa**: An AI-assisted personal expense management platform focused on personal finance workflows (expense logs, loan ledgers, sub tracking).
+- 🏠 **Domira**: A full-stack PropTech platform introducing a student-oriented leasing ecosystem through a House Captain model for shared housing management.
+
+**📚 Current Learning**: React Native, Oracle SQL, C#, AI Agent Development.  
+**🎯 2026 Goals**: Release Takaa MVP, Launch Domira beta, Build AI-powered developer workflows, Contribute to open-source.
 
 ---
 
-### 🗺️ Takaa Dashboard & Roadmap
-<!-- START_TAKAA_STATS -->
-Progress: `█████░░░░░░░ 42%`
+### 🏗️ Project Portfolio
+<!-- START_PORTFOLIO -->
+### Takaa
+Progress: `██████░░░░ 60%`
+**Current Milestone**: MVP Release Q4 2026
+Current Focus:
+- Mobile UI
+- Validation Rules
+- Expense Workflows
 
-**Current Milestone**: MVP Q4 2026
-<!-- END_TAKAA_STATS -->
+### Domira
+Progress: `████░░░░░░ 40%`
+**Current Milestone**: Beta Launch Q3 2026
+Current Focus:
+- Leasing System
+- Role Management
+- Property Availability Logic
 
-#### Feature Checklist
-<!-- START_TAKAA_ROADMAP -->
-- [x] Expense Logic
-- [x] Loan Rules
-- [x] Subscription Tracking
-- [ ] Mobile UI
-- [ ] AI Categorization
-- [ ] Receipt OCR
-- [ ] Public Beta
-<!-- END_TAKAA_ROADMAP -->
+<!-- END_PORTFOLIO -->
 
 ---
 
@@ -37,32 +43,58 @@ Progress: `█████░░░░░░░ 42%`
 <table>
   <tr>
     <td width="50%" valign="top">
-      <h4>🔥 Active Study Streaks</h4>
+      <h4>🔥 Streaks & Stats</h4>
 <!-- START_STREAKS -->
+**🔥 Active Study Streaks**
 - **C#**: 🔥 1 day
 - **React Native**: 🔥 1 day
 - **SQL**: 🔥 3 days
+
+**🏆 Longest Streak**
+- **C#**: 1 day
+- **React Native**: 1 day
+- **SQL**: 3 days
 <!-- END_STREAKS -->
     </td>
     <td width="50%" valign="top">
-      <h4>🌳 Knowledge Graph</h4>
-<!-- START_LEARNING_TREE -->
-**SQL**
-&nbsp;&nbsp;├── SELECT
-&nbsp;&nbsp;├── WHERE
-&nbsp;&nbsp;├── GROUP BY
-&nbsp;&nbsp;└── JOINS
-**React Native**
-&nbsp;&nbsp;├── Expo
-&nbsp;&nbsp;├── Navigation
-&nbsp;&nbsp;└── State Management
-**C#**
-&nbsp;&nbsp;├── OOP
-&nbsp;&nbsp;└── Classes
-<!-- END_LEARNING_TREE -->
+      <h4>📊 Progress Overview</h4>
+<!-- START_LEARNING_PROGRESS -->
+- **SQL**: `█████░░░░░ 57%`
+- **React Native**: `█░░░░░░░░░ 16%`
+- **C#**: `█░░░░░░░░░ 16%`
+<!-- END_LEARNING_PROGRESS -->
     </td>
   </tr>
 </table>
+
+#### 🗺️ Current Learning Path
+<!-- START_LEARNING_PATH -->
+
+#### 🗄️ Database Development (SQL)
+- ✅ SELECT
+- ✅ WHERE
+- ✅ GROUP BY
+- ✅ JOINS
+- ⏳ Subqueries
+- ❌ Stored Procedures
+- ❌ Triggers
+
+#### 📱 Mobile Development (React Native)
+- ✅ Expo
+- ⏳ Navigation
+- ⏳ State Management
+- ❌ API Integration
+- ❌ Authentication
+- ❌ Offline Storage
+
+#### 💻 C# Development (C#)
+- ✅ Classes
+- ⏳ Constructors
+- ⏳ Inheritance
+- ❌ Polymorphism
+- ❌ Interfaces
+- ❌ LINQ
+<!-- END_LEARNING_PATH -->
 
 ---
 
@@ -100,7 +132,7 @@ No recent public commits found.
     <td width="50%" valign="top">
       <h4>🎯 Active Tasks (GitHub Issues)</h4>
 <!-- START_TASKS -->
-*No active tasks from issues. Create a GitHub Issue in this repository to track your next goals!*
+*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*
 <!-- END_TASKS -->
     </td>
   </tr>
@@ -109,9 +141,17 @@ No recent public commits found.
 ---
 
 ### 🌟 Featured Projects
-- **Takaa**: Cross-platform mobile expense assistant built with React Native, Expo, and NativeWind.
-- **C++ Data Structures**: Core library implementing advanced data structures (BSTs, Graphs, Hash Maps) and complexity optimizations.
-- **Personal Portfolio**: Fully responsive portfolio page detailing my academic achievements and projects.
+
+#### 💰 Takaa
+AI-assisted expense management platform focused on personal finance workflows.
+- **Key Features**: Expense tracking, subscription management, loan tracking, financial insights, future AI categorization.
+- **Goal**: MVP Release Q4 2026.
+- **Tech Stack**: React Native + Expo + TypeScript + NativeWind + Zustand.
+
+#### 🏠 Domira
+Production-oriented PropTech platform designed for renting and buying homes.
+- **Key Features**: Student-focused housing ecosystem, Landlord ➔ House Captain ➔ Tenant leasing model, room-level capacity management, gender-matched student housing, automated lease dependency handling, secure file uploads.
+- **Tech Stack**: React + Vite + TypeScript + Tailwind CSS + Zustand (Frontend), Node.js + Express (Backend), PostgreSQL (Database), Docker + Nginx (DevOps).
 
 ---
 

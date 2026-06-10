@@ -16,8 +16,8 @@ def load_yaml(path):
     with open(path, "r") as f:
         return yaml.safe_load(f)
 
-# 1. Streak Calculation Logic
-def calculate_streaks(log_entries):
+# 1. Streak & Longest Streak Calculation
+def calculate_streaks_stats(log_entries):
     topic_dates = {}
     for entry in log_entries:
         date_str = entry.get("date")
@@ -29,57 +29,126 @@ def calculate_streaks(log_entries):
             except ValueError:
                 continue
     
-    streaks = {}
+    stats = {}
     today = datetime.date.today()
     yesterday = today - datetime.timedelta(days=1)
     
-    for topic, dates in topic_dates.items():
-        if today in dates:
+    for topic, dates_set in topic_dates.items():
+        sorted_dates = sorted(list(dates_set))
+        if not sorted_dates:
+            stats[topic] = {"current": 0, "longest": 0}
+            continue
+        
+        # Calculate longest streak
+        longest = 0
+        current_longest = 0
+        prev_date = None
+        for d in sorted_dates:
+            if prev_date is None:
+                current_longest = 1
+            elif (d - prev_date).days == 1:
+                current_longest += 1
+            elif (d - prev_date).days > 1:
+                if current_longest > longest:
+                    longest = current_longest
+                current_longest = 1
+            prev_date = d
+        if current_longest > longest:
+            longest = current_longest
+            
+        # Calculate current streak
+        current = 0
+        if today in dates_set:
             start_date = today
-        elif yesterday in dates:
+        elif yesterday in dates_set:
             start_date = yesterday
         else:
-            streaks[topic] = 0
-            continue
+            start_date = None
             
-        streak = 0
-        current_date = start_date
-        while current_date in dates:
-            streak += 1
-            current_date -= datetime.timedelta(days=1)
-        streaks[topic] = streak
+        if start_date:
+            current_date = start_date
+            while current_date in dates_set:
+                current += 1
+                current_date -= datetime.timedelta(days=1)
         
-    return streaks
+        stats[topic] = {"current": current, "longest": longest}
+        
+    return stats
 
-def render_streaks_md(streaks):
-    if not streaks:
+def render_streaks_md(streaks_stats):
+    if not streaks_stats:
         return "No active streaks."
-    lines = []
-    for topic, count in sorted(streaks.items()):
-        emoji = "🔥" if count > 0 else "❄️"
-        lines.append(f"- **{topic}**: {emoji} {count} day{'s' if count != 1 else ''}")
+    
+    lines = ["**🔥 Active Study Streaks**"]
+    for topic, s in sorted(streaks_stats.items()):
+        emoji = "🔥" if s["current"] > 0 else "❄️"
+        lines.append(f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}")
+    
+    lines.append("\n**🏆 Longest Streak**")
+    for topic, s in sorted(streaks_stats.items()):
+        lines.append(f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")
+        
     return "\n".join(lines)
 
-# 2. Knowledge Tree Logic
-def render_skills_tree(skills):
-    lines = []
-    for category, subskills in skills.items():
-        lines.append(f"**{category}**")
-        for idx, subskill in enumerate(subskills):
-            connector = "└── " if idx == len(subskills) - 1 else "├── "
-            lines.append(f"&nbsp;&nbsp;{connector}{subskill}")
-    return "\n".join(lines)
-
-# 3. Progress Bar Logic
-def render_progress_bar(completed, total, length=12):
+# 2. Render ASCII Progress Bar
+def render_progress_bar(completed, total, length=10):
     if total == 0:
-        return "`░░░░░░░░░░░░ 0%`"
+        return "`░░░░░░░░░░ 0%`"
     percentage = int((completed / total) * 100)
     filled_length = int(length * completed // total)
     bar = "█" * filled_length + "░" * (length - filled_length)
     return f"`{bar} {percentage}%`"
 
-# 4. Fetch GitHub Commits
+# 3. Learning Progress and Path Logic
+def process_learning_journey(skills):
+    progress_lines = []
+    path_lines = []
+    
+    category_icons = {
+        "SQL": "🗄️ Database Development (SQL)",
+        "React Native": "📱 Mobile Development (React Native)",
+        "C#": "💻 C# Development (C#)"
+    }
+    
+    for topic, sections in skills.items():
+        completed = sections.get("completed", [])
+        in_progress = sections.get("in_progress", [])
+        planned = sections.get("planned", [])
+        
+        total = len(completed) + len(in_progress) + len(planned)
+        bar = render_progress_bar(len(completed), total, length=10)
+        progress_lines.append(f"- **{topic}**: {bar}")
+        
+        topic_header = category_icons.get(topic, f"🛠️ {topic}")
+        path_lines.append(f"\n#### {topic_header}")
+        
+        for item in completed:
+            path_lines.append(f"- ✅ {item}")
+        for item in in_progress:
+            path_lines.append(f"- ⏳ {item}")
+        for item in planned:
+            path_lines.append(f"- ❌ {item}")
+            
+    return "\n".join(progress_lines), "\n".join(path_lines)
+
+# 4. Project Portfolio Generator
+def process_project_portfolio(projects):
+    lines = []
+    for name, data in projects.items():
+        completed = data.get("completed_features", 0)
+        total = data.get("total_features", 1)
+        bar = render_progress_bar(completed, total, length=10)
+        
+        lines.append(f"### {name}")
+        lines.append(f"Progress: {bar}")
+        lines.append(f"**Current Milestone**: {data.get('milestone', 'MVP')}")
+        lines.append("Current Focus:")
+        for item in data.get("focus", []):
+            lines.append(f"- {item}")
+        lines.append("")
+    return "\n".join(lines)
+
+# 5. Fetch GitHub Commits
 def fetch_recent_commits():
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -94,7 +163,6 @@ def fetch_recent_commits():
                     for commit in event.get('payload', {}).get('commits', []):
                         message = commit.get('message', '').split('\n')[0]
                         sha = commit.get('sha', '')[:7]
-                        # De-duplicate identical commits in the list
                         if message and not message.startswith("Merge") and sha not in seen_commits:
                             seen_commits.add(sha)
                             commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
@@ -108,7 +176,7 @@ def fetch_recent_commits():
     except Exception as e:
         return f"*(Failed to fetch recent commits: {str(e)})*"
 
-# 5. Fetch Open Issues (Tasks)
+# 6. Fetch Open Issues (Tasks)
 def fetch_open_tasks():
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -125,7 +193,7 @@ def fetch_open_tasks():
                 if len(tasks) >= 5:
                     break
             if not tasks:
-                return "*No active tasks from issues. Create a GitHub Issue in this repository to track your next goals!*"
+                return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
             return "\n".join(tasks)
     except Exception as e:
         return f"*(Failed to fetch tasks from issues: {str(e)})*"
@@ -144,30 +212,16 @@ def main():
     agents_data = load_yaml(AGENTS_PATH)
     
     # Process Streaks
-    streaks = calculate_streaks(learning_log.get("log", []))
-    streaks_md = render_streaks_md(streaks)
+    streaks_stats = calculate_streaks_stats(learning_log.get("log", []))
+    streaks_md = render_streaks_md(streaks_stats)
     
-    # Process Skills Tree
-    skills_tree_md = render_skills_tree(learning_log.get("skills", {}))
+    # Process Learning Journey (Trees and Paths)
+    skills = learning_log.get("skills", {})
+    progress_md, path_md = process_learning_journey(skills)
     
-    # Process Takaa Roadmap & Progress
-    features = takaa_data.get("features", [])
-    completed_features = sum(1 for f in features if f.get("completed"))
-    total_features = len(features)
-    progress_bar = render_progress_bar(completed_features, total_features)
-    
-    roadmap_items = []
-    for f in features:
-        box = "[x]" if f.get("completed") else "[ ]"
-        roadmap_items.append(f"- {box} {f.get('name')}")
-    roadmap_md = "\n".join(roadmap_items)
-    
-    milestone_md = f"**Current Milestone**: {takaa_data.get('metrics', {}).get('target_milestone', 'MVP')}"
-    takaa_stats_md = f"Progress: {progress_bar}\n\n{milestone_md}"
-    
-    # Process Snapshot Tasks
-    focus = learning_log.get("log", [{}])[0].get("topic", "Coding") if learning_log.get("log") else "Development"
-    latest_task = learning_log.get("log", [{}])[0].get("topic", "Practice") if learning_log.get("log") else "Practice"
+    # Process Project Portfolio
+    projects = takaa_data.get("projects", {})
+    portfolio_md = process_project_portfolio(projects)
     
     # Process Agent Lab
     agent_lines = []
@@ -176,8 +230,7 @@ def main():
         agent_lines.append(f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")
     agents_md = "\n".join(agent_lines)
     
-    # Process Reflections
-    # Use standard summaries from agents.yml or learning_log.yml
+    # Process reflections from dates studied
     today_refl = learning_log.get("log", [])[:3]
     completed_today_lines = []
     for r in today_refl:
@@ -192,11 +245,11 @@ def main():
     with open(README_PATH, "r") as f:
         content = f.read()
         
-    # Replace contents
+    # Replace content blocks
+    content = update_block(content, "PORTFOLIO", portfolio_md)
     content = update_block(content, "STREAKS", streaks_md)
-    content = update_block(content, "LEARNING_TREE", skills_tree_md)
-    content = update_block(content, "TAKAA_STATS", takaa_stats_md)
-    content = update_block(content, "TAKAA_ROADMAP", roadmap_md)
+    content = update_block(content, "LEARNING_PROGRESS", progress_md)
+    content = update_block(content, "LEARNING_PATH", path_md)
     content = update_block(content, "COMMITS", recent_commits)
     content = update_block(content, "TASKS", open_tasks)
     content = update_block(content, "AGENTS", agents_md)

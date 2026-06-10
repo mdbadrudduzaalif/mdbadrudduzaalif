@@ -1,17 +1,17 @@
-metrics:
-  target_milestone: "MVP Q4 2026"
-features:
-  - name: "Expense Logic"
-    completed: true
-  - name: "Loan Rules"
-    completed: true
-  - name: "Subscription Tracking"
-    completed: true
-  - name: "Mobile UI"
-    completed: false
-  - name: "AI Categorization"
-    completed: false
-  - name: "Receipt OCR"
-    completed: false
-  - name: "Public Beta"
-    completed: false
+projects:
+  Takaa:
+    completed_features: 6
+    total_features: 10
+    milestone: "MVP Release Q4 2026"
+    focus:
+      - "Mobile UI"
+      - "Validation Rules"
+      - "Expense Workflows"
+  Domira:
+    completed_features: 4
+    total_features: 10
+    milestone: "Beta Launch Q3 2026"
+    focus:
+      - "Leasing System"
+      - "Role Management"
+      - "Property Availability Logic"
