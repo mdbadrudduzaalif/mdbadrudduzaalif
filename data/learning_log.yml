@@ -1,0 +1,25 @@
+skills:
+  SQL:
+    - "SELECT"
+    - "WHERE"
+    - "GROUP BY"
+    - "JOINS"
+  React Native:
+    - "Expo"
+    - "Navigation"
+    - "State Management"
+  C#:
+    - "OOP"
+    - "Classes"
+
+log:
+  - date: "2026-06-10"
+    topic: "SQL"
+  - date: "2026-06-10"
+    topic: "C#"
+  - date: "2026-06-09"
+    topic: "React Native"
+  - date: "2026-06-09"
+    topic: "SQL"
+  - date: "2026-06-08"
+    topic: "SQL"
