@@ -135,8 +135,9 @@ def process_learning_journey(skills):
 def process_project_portfolio(projects):
     lines = []
     for name, data in projects.items():
-        completed = data.get("completed_features", 0)
-        total = data.get("total_features", 1)
+        features = data.get("features", [])
+        completed = sum(1 for f in features if f.get("completed"))
+        total = len(features) if features else 1
         bar = render_progress_bar(completed, total, length=10)
         
         lines.append(f"### {name}")

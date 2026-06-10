@@ -19,7 +19,7 @@ I am currently building two major platforms to address personal finance and shar
 ### 🏗️ Project Portfolio
 <!-- START_PORTFOLIO -->
 ### Takaa
-Progress: `██████░░░░ 60%`
+Progress: `████░░░░░░ 42%`
 **Current Milestone**: MVP Release Q4 2026
 Current Focus:
 - Mobile UI
@@ -27,7 +27,7 @@ Current Focus:
 - Expense Workflows
 
 ### Domira
-Progress: `████░░░░░░ 40%`
+Progress: `█████░░░░░ 50%`
 **Current Milestone**: Beta Launch Q3 2026
 Current Focus:
 - Leasing System
