@@ -49,9 +49,9 @@ Building two production-oriented software platforms:
       <h4>🔥 Streaks & Stats</h4>
 <!-- START_STREAKS -->
 **🔥 Active Study Streaks**
-- **C#**: 🔥 1 day
-- **React Native**: 🔥 1 day
-- **SQL**: 🔥 3 days
+- **C#**: ❄️ 0 days
+- **React Native**: ❄️ 0 days
+- **SQL**: ❄️ 0 days
 
 **🏆 Longest Streak**
 - **C#**: 1 day

@@ -153,7 +153,11 @@ def process_project_portfolio(projects):
 # 5. Fetch GitHub Commits
 def fetch_recent_commits():
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers['Authorization'] = f"token {token}"
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             events = json.loads(response.read().decode())
@@ -181,7 +185,11 @@ def fetch_recent_commits():
 # 6. Fetch Open Issues (Tasks)
 def fetch_open_tasks():
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers['Authorization'] = f"token {token}"
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             issues = json.loads(response.read().decode())
