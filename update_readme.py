@@ -107,7 +107,8 @@ def process_learning_journey(skills):
     category_icons = {
         "SQL": "🗄️ Database Development (SQL)",
         "React Native": "📱 Mobile Development (React Native)",
-        "C#": "💻 C# Development (C#)"
+        "C#": "💻 C# Development (C#)",
+        "Algorithms": "🧠 Algorithms & Data Structures (C++)"
     }
     
     for topic, sections in skills.items():

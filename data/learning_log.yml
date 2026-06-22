@@ -30,8 +30,38 @@ skills:
       - "Polymorphism"
       - "Interfaces"
       - "LINQ"
+  Algorithms:
+    completed:
+      - "Linear Search"
+      - "Binary Search"
+    in_progress:
+      - "Bubble Sort"
+    planned:
+      - "Selection Sort"
+      - "Insertion Sort"
+      - "Merge Sort"
+      - "Quick Sort"
+      - "Recursion"
+      - "Divide and Conquer"
+      - "Greedy Algorithms"
+      - "Activity Selection"
+      - "Fractional Knapsack"
+      - "Dynamic Programming"
+      - "Memoization"
+      - "0/1 Knapsack"
+      - "Longest Common Subsequence (LCS)"
+      - "BFS"
+      - "DFS"
+      - "Connected Components"
+      - "Dijkstra"
+      - "Kruskal"
+      - "Prim"
 
 log:
+  - date: "2026-06-22"
+    topic: "Algorithms"
+  - date: "2026-06-21"
+    topic: "Algorithms"
   - date: "2026-06-10"
     topic: "SQL"
   - date: "2026-06-10"
