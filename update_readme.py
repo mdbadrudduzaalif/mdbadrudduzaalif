@@ -137,9 +137,13 @@ def process_project_portfolio(projects):
     lines = []
     for name, data in projects.items():
         features = data.get("features", [])
-        completed = sum(1 for f in features if f.get("completed"))
-        remaining = sum(1 for f in features if not f.get("completed"))
-        
+        completed = 0
+        remaining = 0
+        for f in features:
+            if f.get("completed"):
+                completed += 1
+            else:
+                remaining += 1
         emoji = "💰" if name == "Takaa" else "🏠"
         lines.append(f"### {emoji} {name}")
         lines.append(f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")
