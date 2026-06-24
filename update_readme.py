@@ -17,7 +17,7 @@ def load_yaml(path):
         return yaml.safe_load(f)
 
 # 1. Streak & Longest Streak Calculation
-def calculate_streaks_stats(log_entries):
+def _parse_log_dates(log_entries):
     topic_dates = {}
     for entry in log_entries:
         date_str = entry.get("date")
@@ -28,52 +28,63 @@ def calculate_streaks_stats(log_entries):
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
-    
-    stats = {}
+    return topic_dates
+
+def _calculate_longest_streak(sorted_dates):
+    longest = 0
+    current_longest = 0
+    prev_date = None
+    for d in sorted_dates:
+        if prev_date is None:
+            current_longest = 1
+        elif (d - prev_date).days == 1:
+            current_longest += 1
+        elif (d - prev_date).days > 1:
+            if current_longest > longest:
+                longest = current_longest
+            current_longest = 1
+        prev_date = d
+    if current_longest > longest:
+        longest = current_longest
+    return longest
+
+def _calculate_current_streak(dates_set):
     today = datetime.date.today()
     yesterday = today - datetime.timedelta(days=1)
+    current = 0
+
+    if today in dates_set:
+        start_date = today
+    elif yesterday in dates_set:
+        start_date = yesterday
+    else:
+        start_date = None
+
+    if start_date:
+        current_date = start_date
+        while current_date in dates_set:
+            current += 1
+            current_date -= datetime.timedelta(days=1)
+
+    return current
+
+def calculate_streaks_stats(log_entries):
+    topic_dates = _parse_log_dates(log_entries)
+    stats = {}
     
     for topic, dates_set in topic_dates.items():
         sorted_dates = sorted(list(dates_set))
         if not sorted_dates:
             stats[topic] = {"current": 0, "longest": 0}
             continue
-        
-        # Calculate longest streak
-        longest = 0
-        current_longest = 0
-        prev_date = None
-        for d in sorted_dates:
-            if prev_date is None:
-                current_longest = 1
-            elif (d - prev_date).days == 1:
-                current_longest += 1
-            elif (d - prev_date).days > 1:
-                if current_longest > longest:
-                    longest = current_longest
-                current_longest = 1
-            prev_date = d
-        if current_longest > longest:
-            longest = current_longest
             
-        # Calculate current streak
-        current = 0
-        if today in dates_set:
-            start_date = today
-        elif yesterday in dates_set:
-            start_date = yesterday
-        else:
-            start_date = None
-            
-        if start_date:
-            current_date = start_date
-            while current_date in dates_set:
-                current += 1
-                current_date -= datetime.timedelta(days=1)
+        longest = _calculate_longest_streak(sorted_dates)
+        current = _calculate_current_streak(dates_set)
         
         stats[topic] = {"current": current, "longest": longest}
         
     return stats
+
 
 def render_streaks_md(streaks_stats):
     if not streaks_stats:
