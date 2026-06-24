@@ -79,13 +79,15 @@ def render_streaks_md(streaks_stats):
     if not streaks_stats:
         return "No active streaks."
     
+    sorted_stats = sorted(streaks_stats.items())
+
     lines = ["**🔥 Active Study Streaks**"]
-    for topic, s in sorted(streaks_stats.items()):
+    for topic, s in sorted_stats:
         emoji = "🔥" if s["current"] > 0 else "❄️"
         lines.append(f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}")
     
     lines.append("\n**🏆 Longest Streak**")
-    for topic, s in sorted(streaks_stats.items()):
+    for topic, s in sorted_stats:
         lines.append(f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")
         
     return "\n".join(lines)
