@@ -214,7 +214,7 @@ def update_block(content, tag, new_value):
     end_tag = f"<!-- END_{tag} -->"
     pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
     replacement = f"{start_tag}\n{new_value}\n{end_tag}"
-    return re.sub(pattern, replacement, content, flags=re.DOTALL)
+    return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 def main():
     # Load YAML databases
