@@ -151,6 +151,24 @@ def process_project_portfolio(projects):
         lines.append("")
     return "\n".join(lines)
 
+def _extract_commits(events):
+    commits = []
+    seen_commits = set()
+    for event in events:
+        if event.get('type') != 'PushEvent':
+            continue
+        repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
+        for commit in event.get('payload', {}).get('commits', []):
+            message = commit.get('message', '').split('\n')[0]
+            sha = commit.get('sha', '')[:7]
+            if not message or message.startswith("Merge") or sha in seen_commits:
+                continue
+            seen_commits.add(sha)
+            commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
+            if len(commits) >= 5:
+                return commits
+    return commits
+
 # 5. Fetch GitHub Commits
 def fetch_recent_commits():
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
@@ -162,21 +180,7 @@ def fetch_recent_commits():
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             events = json.loads(response.read().decode())
-            commits = []
-            seen_commits = set()
-            for event in events:
-                if event.get('type') == 'PushEvent':
-                    repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
-                    for commit in event.get('payload', {}).get('commits', []):
-                        message = commit.get('message', '').split('\n')[0]
-                        sha = commit.get('sha', '')[:7]
-                        if message and not message.startswith("Merge") and sha not in seen_commits:
-                            seen_commits.add(sha)
-                            commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
-                        if len(commits) >= 5:
-                            break
-                if len(commits) >= 5:
-                    break
+            commits = _extract_commits(events)
             if not commits:
                 return "No recent public commits found."
             return "\n".join(commits)
