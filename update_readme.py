@@ -34,7 +34,7 @@ def calculate_streaks_stats(log_entries):
     yesterday = today - datetime.timedelta(days=1)
     
     for topic, dates_set in topic_dates.items():
-        sorted_dates = sorted(list(dates_set))
+        sorted_dates = sorted(dates_set)
         if not sorted_dates:
             stats[topic] = {"current": 0, "longest": 0}
             continue
