@@ -151,61 +151,58 @@ def process_project_portfolio(projects):
         lines.append("")
     return "\n".join(lines)
 
+def _fetch_github_api(url):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"token {token}"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=5) as response:
+        return json.loads(response.read().decode())
+
 # 5. Fetch GitHub Commits
 def fetch_recent_commits():
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    token = os.environ.get("GITHUB_TOKEN")
-    if token:
-        headers['Authorization'] = f"token {token}"
-    req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            events = json.loads(response.read().decode())
-            commits = []
-            seen_commits = set()
-            for event in events:
-                if event.get('type') == 'PushEvent':
-                    repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
-                    for commit in event.get('payload', {}).get('commits', []):
-                        message = commit.get('message', '').split('\n')[0]
-                        sha = commit.get('sha', '')[:7]
-                        if message and not message.startswith("Merge") and sha not in seen_commits:
-                            seen_commits.add(sha)
-                            commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
-                        if len(commits) >= 5:
-                            break
-                if len(commits) >= 5:
-                    break
-            if not commits:
-                return "No recent public commits found."
-            return "\n".join(commits)
+        events = _fetch_github_api(url)
+        commits = []
+        seen_commits = set()
+        for event in events:
+            if event.get('type') == 'PushEvent':
+                repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
+                for commit in event.get('payload', {}).get('commits', []):
+                    message = commit.get('message', '').split('\n')[0]
+                    sha = commit.get('sha', '')[:7]
+                    if message and not message.startswith("Merge") and sha not in seen_commits:
+                        seen_commits.add(sha)
+                        commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
+                    if len(commits) >= 5:
+                        break
+            if len(commits) >= 5:
+                break
+        if not commits:
+            return "No recent public commits found."
+        return "\n".join(commits)
     except Exception as e:
         return f"*(Failed to fetch recent commits: {str(e)})*"
 
 # 6. Fetch Open Issues (Tasks)
 def fetch_open_tasks():
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    token = os.environ.get("GITHUB_TOKEN")
-    if token:
-        headers['Authorization'] = f"token {token}"
-    req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            issues = json.loads(response.read().decode())
-            tasks = []
-            for issue in issues:
-                if 'pull_request' not in issue:
-                    title = issue.get('title', '')
-                    number = issue.get('number', '')
-                    html_url = issue.get('html_url', '')
-                    tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
-                if len(tasks) >= 5:
-                    break
-            if not tasks:
-                return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
-            return "\n".join(tasks)
+        issues = _fetch_github_api(url)
+        tasks = []
+        for issue in issues:
+            if 'pull_request' not in issue:
+                title = issue.get('title', '')
+                number = issue.get('number', '')
+                html_url = issue.get('html_url', '')
+                tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
+            if len(tasks) >= 5:
+                break
+        if not tasks:
+            return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
+        return "\n".join(tasks)
     except Exception as e:
         return f"*(Failed to fetch tasks from issues: {str(e)})*"
 
