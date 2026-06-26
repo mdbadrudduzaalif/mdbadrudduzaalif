@@ -48,6 +48,8 @@ class TestUpdateReadme(unittest.TestCase):
 
         dates = {today, yesterday}
         self.assertEqual(_calculate_current_streak(dates), 2)
+        
+        # Clean up
         del os.environ["TZ_OFFSET_HOURS"]
 
     def test_render_progress_bar(self):
@@ -58,3 +60,4 @@ class TestUpdateReadme(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
