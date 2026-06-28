@@ -9,7 +9,7 @@ import re
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 README_PATH = os.path.join(BASE_DIR, "README.md")
 LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
-PROJECTS_PATH = os.path.join(BASE_DIR, "data", "takaa.yml")
+PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 def load_yaml(path):
@@ -49,7 +49,17 @@ def _calculate_longest_streak(sorted_dates):
     return longest
 
 def _calculate_current_streak(dates_set):
-    today = datetime.date.today()
+    tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
+    if tz_offset_hours is not None:
+        try:
+            offset = int(tz_offset_hours)
+            tz = datetime.timezone(datetime.timedelta(hours=offset))
+            today = datetime.datetime.now(tz).date()
+        except ValueError:
+            today = datetime.date.today()
+    else:
+        today = datetime.date.today()
+
     yesterday = today - datetime.timedelta(days=1)
     current = 0
 
@@ -73,16 +83,16 @@ def calculate_streaks_stats(log_entries):
     stats = {}
     
     for topic, dates_set in topic_dates.items():
-        sorted_dates = sorted(list(dates_set))
+        sorted_dates = sorted(dates_set)
         if not sorted_dates:
             stats[topic] = {"current": 0, "longest": 0}
             continue
-
+        
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
         
         stats[topic] = {"current": current, "longest": longest}
-
+         
     return stats
 
 
@@ -90,15 +100,17 @@ def render_streaks_md(streaks_stats):
     if not streaks_stats:
         return "No active streaks."
     
+    sorted_stats = sorted(streaks_stats.items())
+
     lines = ["**🔥 Active Study Streaks**"]
-    for topic, s in sorted(streaks_stats.items()):
+    for topic, s in sorted_stats:
         emoji = "🔥" if s["current"] > 0 else "❄️"
         lines.append(f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}")
     
     lines.append("\n**🏆 Longest Streak**")
-    for topic, s in sorted(streaks_stats.items()):
+    for topic, s in sorted_stats:
         lines.append(f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")
-
+         
     return "\n".join(lines)
 
 # 2. Render ASCII Progress Bar
@@ -140,7 +152,7 @@ def process_learning_journey(skills):
             path_lines.append(f"- ⏳ {item}")
         for item in planned:
             path_lines.append(f"- ❌ {item}")
-
+             
     return "\n".join(progress_lines), "\n".join(path_lines)
 
 # 4. Project Portfolio Generator
@@ -162,6 +174,24 @@ def process_project_portfolio(projects):
         lines.append("")
     return "\n".join(lines)
 
+def _extract_commits(events):
+    commits = []
+    seen_commits = set()
+    for event in events:
+        if event.get('type') != 'PushEvent':
+            continue
+        repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
+        for commit in event.get('payload', {}).get('commits', []):
+            message = commit.get('message', '').split('\n')[0]
+            sha = commit.get('sha', '')[:7]
+            if not message or message.startswith("Merge") or sha in seen_commits:
+                continue
+            seen_commits.add(sha)
+            commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
+            if len(commits) >= 5:
+                return commits
+    return commits
+
 # 5. Fetch GitHub Commits
 def fetch_recent_commits():
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
@@ -169,25 +199,13 @@ def fetch_recent_commits():
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
             events = json.loads(response.read().decode())
-            commits = []
-            seen_commits = set()
-            for event in events:
-                if event.get('type') == 'PushEvent':
-                    repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
-                    for commit in event.get('payload', {}).get('commits', []):
-                        message = commit.get('message', '').split('\n')[0]
-                        sha = commit.get('sha', '')[:7]
-                        if message and not message.startswith("Merge") and sha not in seen_commits:
-                            seen_commits.add(sha)
-                            commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
-                        if len(commits) >= 5:
-                            break
-                if len(commits) >= 5:
-                    break
+            commits = _extract_commits(events)
             if not commits:
                 return "No recent public commits found."
             return "\n".join(commits)
@@ -201,6 +219,8 @@ def fetch_open_tasks():
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -225,7 +245,7 @@ def update_block(content, tag, new_value):
     end_tag = f"<!-- END_{tag} -->"
     pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
     replacement = f"{start_tag}\n{new_value}\n{end_tag}"
-    return re.sub(pattern, replacement, content, flags=re.DOTALL)
+    return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 def main():
     # Load YAML databases
@@ -266,7 +286,7 @@ def main():
     # Read README
     with open(README_PATH, "r") as f:
         content = f.read()
-
+         
     # Replace content blocks
     content = update_block(content, "PORTFOLIO", portfolio_md)
     content = update_block(content, "STREAKS", streaks_md)
@@ -280,7 +300,7 @@ def main():
     # Write back
     with open(README_PATH, "w") as f:
         f.write(content)
-
+         
     print("README updated successfully.")
 
 if __name__ == "__main__":
