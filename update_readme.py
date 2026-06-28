@@ -50,7 +50,6 @@ def _calculate_longest_streak(sorted_dates):
 
 def _calculate_current_streak(dates_set):
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
-
     if tz_offset_hours is not None:
         try:
             offset = int(tz_offset_hours)
@@ -206,7 +205,7 @@ def fetch_recent_commits():
     if token:
         headers['Authorization'] = f"token {token}"
     else:
-        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur. Recommended for local execution.")
+        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -226,7 +225,7 @@ def fetch_open_tasks():
     if token:
         headers['Authorization'] = f"token {token}"
     else:
-        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur. Recommended for local execution.")
+        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
