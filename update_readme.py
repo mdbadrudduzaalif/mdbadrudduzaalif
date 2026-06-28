@@ -49,13 +49,16 @@ def _calculate_longest_streak(sorted_dates):
     return longest
 
 def _calculate_current_streak(dates_set):
+    # Try to get timezone offset from environment, default to local system time if not set
+    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
             offset = int(tz_offset_hours)
-            tz = datetime.timezone(datetime.timedelta(hours=offset))
-            today = datetime.datetime.now(tz).date()
+            tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
+            today = datetime.datetime.now(tz_offset).date()
         except ValueError:
+            # Fallback to local time if invalid value
             today = datetime.date.today()
     else:
         today = datetime.date.today()
@@ -253,6 +256,9 @@ def update_block(content, tag, new_value):
     return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 def main():
+    if not os.environ.get("GITHUB_TOKEN"):
+        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")
+
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
     projects_data = load_yaml(PROJECTS_PATH)
