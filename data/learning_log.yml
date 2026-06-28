@@ -34,12 +34,12 @@ skills:
     completed:
       - "Linear Search"
       - "Binary Search"
-    in_progress:
       - "Bubble Sort"
-    planned:
       - "Selection Sort"
       - "Insertion Sort"
+    in_progress:
       - "Merge Sort"
+    planned:
       - "Quick Sort"
       - "Recursion"
       - "Divide and Conquer"
@@ -58,6 +58,12 @@ skills:
       - "Prim"
 
 log:
+  - date: "2026-06-28"
+    topic: "Algorithms"
+  - date: "2026-06-24"
+    topic: "Algorithms"
+  - date: "2026-06-23"
+    topic: "Algorithms"
   - date: "2026-06-22"
     topic: "Algorithms"
   - date: "2026-06-21"

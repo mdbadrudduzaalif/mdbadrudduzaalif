@@ -9,7 +9,7 @@ import re
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 README_PATH = os.path.join(BASE_DIR, "README.md")
 LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
-PROJECTS_PATH = os.path.join(BASE_DIR, "data", "takaa.yml")
+PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 def load_yaml(path):
@@ -49,13 +49,16 @@ def _calculate_longest_streak(sorted_dates):
     return longest
 
 def _calculate_current_streak(dates_set):
+    # Try to get timezone offset from environment, default to local system time if not set
+    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
             offset = int(tz_offset_hours)
-            tz = datetime.timezone(datetime.timedelta(hours=offset))
-            today = datetime.datetime.now(tz).date()
+            tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
+            today = datetime.datetime.now(tz_offset).date()
         except ValueError:
+            # Fallback to local time if invalid value
             today = datetime.date.today()
     else:
         today = datetime.date.today()
@@ -160,8 +163,13 @@ def process_project_portfolio(projects):
     lines = []
     for name, data in projects.items():
         features = data.get("features", [])
-        completed = sum(1 for f in features if f.get("completed"))
-        remaining = sum(1 for f in features if not f.get("completed"))
+        completed = 0
+        remaining = 0
+        for f in features:
+            if f.get("completed"):
+                completed += 1
+            else:
+                remaining += 1
         
         emoji = "💰" if name == "Takaa" else "🏠"
         lines.append(f"### {emoji} {name}")
@@ -248,6 +256,9 @@ def update_block(content, tag, new_value):
     return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 def main():
+    if not os.environ.get("GITHUB_TOKEN"):
+        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")
+
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
     projects_data = load_yaml(PROJECTS_PATH)
