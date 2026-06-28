@@ -208,6 +208,8 @@ def fetch_recent_commits():
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur. Recommended for local execution.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -226,6 +228,8 @@ def fetch_open_tasks():
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur. Recommended for local execution.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -258,7 +262,7 @@ def main():
 
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
-    takaa_data = load_yaml(PROJECTS_PATH)
+    projects_data = load_yaml(PROJECTS_PATH)
     agents_data = load_yaml(AGENTS_PATH)
     
     # Process Streaks
@@ -270,7 +274,7 @@ def main():
     progress_md, path_md = process_learning_journey(skills)
     
     # Process Project Portfolio
-    projects = takaa_data.get("projects", {})
+    projects = projects_data.get("projects", {})
     portfolio_md = process_project_portfolio(projects)
     
     # Process Agent Lab
