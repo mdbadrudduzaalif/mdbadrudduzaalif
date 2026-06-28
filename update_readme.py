@@ -9,7 +9,7 @@ import re
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 README_PATH = os.path.join(BASE_DIR, "README.md")
 LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
-TAKAA_PATH = os.path.join(BASE_DIR, "data", "takaa.yml")
+PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 def load_yaml(path):
@@ -49,7 +49,17 @@ def _calculate_longest_streak(sorted_dates):
     return longest
 
 def _calculate_current_streak(dates_set):
-    today = datetime.date.today()
+    tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
+    if tz_offset_hours is not None:
+        try:
+            offset = int(tz_offset_hours)
+            tz = datetime.timezone(datetime.timedelta(hours=offset))
+            today = datetime.datetime.now(tz).date()
+        except ValueError:
+            today = datetime.date.today()
+    else:
+        today = datetime.date.today()
+
     yesterday = today - datetime.timedelta(days=1)
     current = 0
 
@@ -73,16 +83,16 @@ def calculate_streaks_stats(log_entries):
     stats = {}
     
     for topic, dates_set in topic_dates.items():
-        sorted_dates = sorted(list(dates_set))
+        sorted_dates = sorted(dates_set)
         if not sorted_dates:
             stats[topic] = {"current": 0, "longest": 0}
             continue
-            
+        
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
         
         stats[topic] = {"current": current, "longest": longest}
-        
+         
     return stats
 
 
@@ -189,6 +199,8 @@ def fetch_recent_commits():
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -207,6 +219,8 @@ def fetch_open_tasks():
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
+    else:
+        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -231,12 +245,12 @@ def update_block(content, tag, new_value):
     end_tag = f"<!-- END_{tag} -->"
     pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
     replacement = f"{start_tag}\n{new_value}\n{end_tag}"
-    return re.sub(pattern, replacement, content, flags=re.DOTALL)
+    return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 def main():
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
-    takaa_data = load_yaml(TAKAA_PATH)
+    projects_data = load_yaml(PROJECTS_PATH)
     agents_data = load_yaml(AGENTS_PATH)
     
     # Process Streaks
@@ -248,7 +262,7 @@ def main():
     progress_md, path_md = process_learning_journey(skills)
     
     # Process Project Portfolio
-    projects = takaa_data.get("projects", {})
+    projects = projects_data.get("projects", {})
     portfolio_md = process_project_portfolio(projects)
     
     # Process Agent Lab
