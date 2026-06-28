@@ -1,11 +1,10 @@
 import unittest
 import datetime
-<<<<<<< HEAD
-from update_readme import _calculate_current_streak, render_progress_bar
+import os
+from update_readme import _calculate_longest_streak, _calculate_current_streak, render_progress_bar
 
 class TestUpdateReadme(unittest.TestCase):
-    def test_calculate_current_streak(self):
-        import os
+    def test_calculate_current_streak_head(self):
         os.environ["TZ_OFFSET_HOURS"] = "6"
         tz_offset = datetime.timezone(datetime.timedelta(hours=6))
         today = datetime.datetime.now(tz_offset).date()
@@ -21,14 +20,9 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(_calculate_current_streak({two_days_ago, yesterday}), 2)
         self.assertEqual(_calculate_current_streak({three_days_ago, two_days_ago, yesterday, today}), 4)
 
-    def test_render_progress_bar(self):
-        self.assertEqual(render_progress_bar(0, 0), "`░░░░░░░░░░ 0%`")
-        self.assertEqual(render_progress_bar(0, 10), "`░░░░░░░░░░ 0%`")
-=======
-import os
-from update_readme import _calculate_longest_streak, _calculate_current_streak, render_progress_bar
+        if "TZ_OFFSET_HOURS" in os.environ:
+            del os.environ["TZ_OFFSET_HOURS"]
 
-class TestUpdateReadme(unittest.TestCase):
     def test_longest_streak(self):
         dates = [
             datetime.date(2023, 1, 1),
@@ -75,15 +69,15 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(_calculate_current_streak(dates), 2)
         
         # Clean up
-        del os.environ["TZ_OFFSET_HOURS"]
+        if "TZ_OFFSET_HOURS" in os.environ:
+            del os.environ["TZ_OFFSET_HOURS"]
 
     def test_render_progress_bar(self):
         self.assertEqual(render_progress_bar(0, 0), "`░░░░░░░░░░ 0%`")
->>>>>>> main
+        self.assertEqual(render_progress_bar(0, 10), "`░░░░░░░░░░ 0%`")
         self.assertEqual(render_progress_bar(5, 10), "`█████░░░░░ 50%`")
         self.assertEqual(render_progress_bar(10, 10), "`██████████ 100%`")
         self.assertEqual(render_progress_bar(3, 10), "`███░░░░░░░ 30%`")
 
 if __name__ == "__main__":
     unittest.main()
-

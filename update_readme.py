@@ -120,6 +120,7 @@ def render_streaks_md(streaks_stats):
 def render_progress_bar(completed, total, length=10):
     if total == 0:
         return "`░░░░░░░░░░ 0%`"
+    completed = min(completed, total)
     percentage = int((completed / total) * 100)
     filled_length = int(length * completed // total)
     bar = "█" * filled_length + "░" * (length - filled_length)
@@ -171,7 +172,7 @@ def process_project_portfolio(projects):
             else:
                 remaining += 1
         
-        emoji = "💰" if name == "Takaa" else "🏠"
+        emoji = data.get("emoji", "🚀")
         lines.append(f"### {emoji} {name}")
         lines.append(f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")
         lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")
@@ -200,53 +201,53 @@ def _extract_commits(events):
                 return commits
     return commits
 
-# 5. Fetch GitHub Commits
-def fetch_recent_commits():
-    url = "https://api.github.com/users/mdbadrudduzaalif/events"
+def _fetch_github_api(url):
     headers = {'User-Agent': 'Mozilla/5.0'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
-    else:
-        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
+
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
-            events = json.loads(response.read().decode())
-            commits = _extract_commits(events)
-            if not commits:
-                return "No recent public commits found."
-            return "\n".join(commits)
+            data = json.loads(response.read().decode())
+            if isinstance(data, dict) and "message" in data:
+                return f"*(API Error: {data['message']})*"
+            return data
     except Exception as e:
-        return f"*(Failed to fetch recent commits: {str(e)})*"
+        return f"*(Failed API request: {str(e)})*"
+
+# 5. Fetch GitHub Commits
+def fetch_recent_commits():
+    url = "https://api.github.com/users/mdbadrudduzaalif/events"
+    events = _fetch_github_api(url)
+    if isinstance(events, str) and events.startswith("*("):
+        return events # return the error string
+
+    commits = _extract_commits(events)
+    if not commits:
+        return "No recent public commits found."
+    return "\n".join(commits)
 
 # 6. Fetch Open Issues (Tasks)
 def fetch_open_tasks():
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    token = os.environ.get("GITHUB_TOKEN")
-    if token:
-        headers['Authorization'] = f"token {token}"
-    else:
-        print("Warning: GITHUB_TOKEN not found. API rate limits may apply for unauthenticated requests.")
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            issues = json.loads(response.read().decode())
-            tasks = []
-            for issue in issues:
-                if 'pull_request' not in issue:
-                    title = issue.get('title', '')
-                    number = issue.get('number', '')
-                    html_url = issue.get('html_url', '')
-                    tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
-                if len(tasks) >= 5:
-                    break
-            if not tasks:
-                return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
-            return "\n".join(tasks)
-    except Exception as e:
-        return f"*(Failed to fetch tasks from issues: {str(e)})*"
+    issues = _fetch_github_api(url)
+    if isinstance(issues, str) and issues.startswith("*("):
+        return issues # return the error string
+
+    tasks = []
+    for issue in issues:
+        if 'pull_request' not in issue:
+            title = issue.get('title', '')
+            number = issue.get('number', '')
+            html_url = issue.get('html_url', '')
+            tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
+        if len(tasks) >= 5:
+            break
+    if not tasks:
+        return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
+    return "\n".join(tasks)
 
 def update_block(content, tag, new_value):
     start_tag = f"<!-- START_{tag} -->"
