@@ -95,7 +95,7 @@ def calculate_streaks_stats(log_entries):
         current = _calculate_current_streak(dates_set)
         
         stats[topic] = {"current": current, "longest": longest}
-        
+
     return stats
 
 
@@ -113,7 +113,7 @@ def render_streaks_md(streaks_stats):
     lines.append("\n**🏆 Longest Streak**")
     for topic, s in sorted_stats:
         lines.append(f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")
-         
+
     return "\n".join(lines)
 
 # 2. Render ASCII Progress Bar
@@ -155,7 +155,7 @@ def process_learning_journey(skills):
             path_lines.append(f"- ⏳ {item}")
         for item in planned:
             path_lines.append(f"- ❌ {item}")
-             
+
     return "\n".join(progress_lines), "\n".join(path_lines)
 
 # 4. Project Portfolio Generator
@@ -297,7 +297,7 @@ def main():
     # Read README
     with open(README_PATH, "r") as f:
         content = f.read()
-         
+
     # Replace content blocks
     content = update_block(content, "PORTFOLIO", portfolio_md)
     content = update_block(content, "STREAKS", streaks_md)
@@ -311,7 +311,7 @@ def main():
     # Write back
     with open(README_PATH, "w") as f:
         f.write(content)
-         
+
     print("README updated successfully.")
 
 if __name__ == "__main__":
