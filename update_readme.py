@@ -1,9 +1,12 @@
-import os
-import yaml
-import urllib.request
-import json
+"""Module to update README.md with learning streaks and project info."""
 import datetime
+import json
+import os
 import re
+import urllib.request
+import urllib.error
+
+import yaml
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -12,25 +15,33 @@ LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
 PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
+
 def load_yaml(path):
-    with open(path, "r") as f:
+    """Load YAML file."""
+    with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 # 1. Streak & Longest Streak Calculation
+
+
 def _parse_log_dates(log_entries):
+    """Parse log dates."""
     topic_dates = {}
     for entry in log_entries:
         date_str = entry.get("date")
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                date_obj = datetime.datetime.strptime(
+                    date_str, "%Y-%m-%d").date()
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
     return topic_dates
 
+
 def _calculate_longest_streak(sorted_dates):
+    """Calculate longest streak."""
     longest = 0
     current_longest = 0
     prev_date = None
@@ -40,16 +51,16 @@ def _calculate_longest_streak(sorted_dates):
         elif (d - prev_date).days == 1:
             current_longest += 1
         elif (d - prev_date).days > 1:
-            if current_longest > longest:
-                longest = current_longest
+            longest = max(longest, current_longest)
             current_longest = 1
         prev_date = d
-    if current_longest > longest:
-        longest = current_longest
+    longest = max(longest, current_longest)
     return longest
 
+
 def _calculate_current_streak(dates_set):
-    # Try to get timezone offset from environment, default to local system time if not set
+    """Calculate current streak."""
+    # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
     # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
@@ -81,86 +92,100 @@ def _calculate_current_streak(dates_set):
 
     return current
 
+
 def calculate_streaks_stats(log_entries):
+    """Calculate streak stats."""
     topic_dates = _parse_log_dates(log_entries)
     stats = {}
-    
+
     for topic, dates_set in topic_dates.items():
         sorted_dates = sorted(dates_set)
         if not sorted_dates:
             stats[topic] = {"current": 0, "longest": 0}
             continue
-        
+
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
-        
+
         stats[topic] = {"current": current, "longest": longest}
-        
+
     return stats
 
 
 def render_streaks_md(streaks_stats):
+    """Render streaks MD."""
     if not streaks_stats:
         return "No active streaks."
-    
+
     sorted_stats = sorted(streaks_stats.items())
 
     lines = ["**🔥 Active Study Streaks**"]
     for topic, s in sorted_stats:
         emoji = "🔥" if s["current"] > 0 else "❄️"
-        lines.append(f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}")
-    
+        lines.append(
+            f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}")  # noqa: E501  # pylint: disable=line-too-long
+
     lines.append("\n**🏆 Longest Streak**")
     for topic, s in sorted_stats:
-        lines.append(f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")
-         
+        lines.append(
+            f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")  # noqa: E501
+
     return "\n".join(lines)
 
 # 2. Render ASCII Progress Bar
+
+
 def render_progress_bar(completed, total, length=10):
+    """Render progress bar."""
     if total == 0:
         return "`░░░░░░░░░░ 0%`"
     completed = min(completed, total)
     percentage = int((completed / total) * 100)
     filled_length = int(length * completed // total)
-    bar = "█" * filled_length + "░" * (length - filled_length)
-    return f"`{bar} {percentage}%`"
+    prog_bar = "█" * filled_length + "░" * (length - filled_length)
+    return f"`{prog_bar} {percentage}%`"
 
 # 3. Learning Progress and Path Logic
+
+
 def process_learning_journey(skills):
+    """Process learning journey."""
     progress_lines = []
     path_lines = []
-    
+
     category_icons = {
         "SQL": "🗄️ Database Development (SQL)",
         "React Native": "📱 Mobile Development (React Native)",
         "C#": "💻 C# Development (C#)",
         "Algorithms": "🧠 Algorithms & Data Structures (C++)"
     }
-    
+
     for topic, sections in skills.items():
         completed = sections.get("completed", [])
         in_progress = sections.get("in_progress", [])
         planned = sections.get("planned", [])
-        
+
         total = len(completed) + len(in_progress) + len(planned)
-        bar = render_progress_bar(len(completed), total, length=10)
-        progress_lines.append(f"- **{topic}**: {bar}")
-        
+        prog_bar = render_progress_bar(len(completed), total, length=10)
+        progress_lines.append(f"- **{topic}**: {prog_bar}")
+
         topic_header = category_icons.get(topic, f"🛠️ {topic}")
         path_lines.append(f"\n#### {topic_header}")
-        
+
         for item in completed:
             path_lines.append(f"- ✅ {item}")
         for item in in_progress:
             path_lines.append(f"- ⏳ {item}")
         for item in planned:
             path_lines.append(f"- ❌ {item}")
-             
+
     return "\n".join(progress_lines), "\n".join(path_lines)
 
 # 4. Project Portfolio Generator
+
+
 def process_project_portfolio(projects):
+    """Process project portfolio."""
     lines = []
     for name, data in projects.items():
         features = data.get("features", [])
@@ -171,19 +196,23 @@ def process_project_portfolio(projects):
                 completed += 1
             else:
                 remaining += 1
-        
+
         emoji = data.get("emoji", "🚀")
         lines.append(f"### {emoji} {name}")
-        lines.append(f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")
-        lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")
-        lines.append(f"- **Current Milestone**: {data.get('milestone', 'MVP')}")
+        lines.append(
+            f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")  # noqa: E501  # pylint: disable=line-too-long
+        lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")  # pylint: disable=line-too-long
+        lines.append(
+            f"- **Current Milestone**: {data.get('milestone', 'MVP')}")
         lines.append("- **Current Focus**:")
         for item in data.get("focus", []):
             lines.append(f"  - {item}")
         lines.append("")
     return "\n".join(lines)
 
+
 def _extract_commits(events):
+    """Extract commits."""
     commits = []
     seen_commits = set()
     for event in events:
@@ -193,15 +222,20 @@ def _extract_commits(events):
         for commit in event.get('payload', {}).get('commits', []):
             message = commit.get('message', '').split('\n')[0]
             sha = commit.get('sha', '')[:7]
-            if not message or message.startswith("Merge") or sha in seen_commits:
+            if not message or message.startswith(
+                    "Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
-            commits.append(f"- **{repo_name}**: {message} ([`{sha}`](https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")
+            commits.append(
+                f"- **{repo_name}**: {message} ([`{sha}`]"
+                f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501
             if len(commits) >= 5:
                 return commits
     return commits
 
+
 def _fetch_github_api(url):
+    """Fetch github API."""
     headers = {'User-Agent': 'Mozilla/5.0'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
@@ -214,15 +248,20 @@ def _fetch_github_api(url):
             if isinstance(data, dict) and "message" in data:
                 return f"*(API Error: {data['message']})*"
             return data
-    except Exception as e:
+    except urllib.error.URLError as e:
+        return f"*(Failed API request: {str(e)})*"
+    except Exception as e:  # pylint: disable=broad-exception-caught
         return f"*(Failed API request: {str(e)})*"
 
 # 5. Fetch GitHub Commits
+
+
 def fetch_recent_commits():
+    """Fetch recent commits."""
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
     events = _fetch_github_api(url)
     if isinstance(events, str) and events.startswith("*("):
-        return events # return the error string
+        return events  # return the error string
 
     commits = _extract_commits(events)
     if not commits:
@@ -230,11 +269,14 @@ def fetch_recent_commits():
     return "\n".join(commits)
 
 # 6. Fetch Open Issues (Tasks)
+
+
 def fetch_open_tasks():
-    url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"
+    """Fetch open tasks."""
+    url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"  # noqa: E501  # pylint: disable=line-too-long
     issues = _fetch_github_api(url)
     if isinstance(issues, str) and issues.startswith("*("):
-        return issues # return the error string
+        return issues  # return the error string
 
     tasks = []
     for issue in issues:
@@ -246,59 +288,68 @@ def fetch_open_tasks():
         if len(tasks) >= 5:
             break
     if not tasks:
-        return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
+        return ("*No active tasks from projects. Create a GitHub Issue "
+                "in this repository to track your next task!*")
     return "\n".join(tasks)
 
+
 def update_block(content, tag, new_value):
+    """Update block."""
     start_tag = f"<!-- START_{tag} -->"
     end_tag = f"<!-- END_{tag} -->"
     pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
     replacement = f"{start_tag}\n{new_value}\n{end_tag}"
     return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
+
 def main():
+    """Main function."""
+    # pylint: disable=too-many-locals
     if not os.environ.get("GITHUB_TOKEN"):
-        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")
+        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
 
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
     projects_data = load_yaml(PROJECTS_PATH)
     agents_data = load_yaml(AGENTS_PATH)
-    
+
     # Process Streaks
     streaks_stats = calculate_streaks_stats(learning_log.get("log", []))
     streaks_md = render_streaks_md(streaks_stats)
-    
+
     # Process Learning Journey (Trees and Paths)
     skills = learning_log.get("skills", {})
     progress_md, path_md = process_learning_journey(skills)
-    
+
     # Process Project Portfolio
     projects = projects_data.get("projects", {})
     portfolio_md = process_project_portfolio(projects)
-    
+
     # Process Agent Lab
     agent_lines = []
     for a in agents_data.get("agents", []):
         emoji = "🟢" if a.get("status") == "Active" else "🟡"
-        agent_lines.append(f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")
+        agent_lines.append(
+            f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")  # noqa: E501
     agents_md = "\n".join(agent_lines)
-    
+
     # Process reflections from dates studied
     today_refl = learning_log.get("log", [])[:3]
     completed_today_lines = []
     for r in today_refl:
-        completed_today_lines.append(f"- Logged study for {r.get('topic')} ({r.get('date')})")
-    reflections_md = "**Completed Today**:\n" + "\n".join(completed_today_lines)
-    
+        completed_today_lines.append(
+            f"- Logged study for {r.get('topic')} ({r.get('date')})")
+    reflections_md = "**Completed Today**:\n" + \
+        "\n".join(completed_today_lines)
+
     # API Fetches
     recent_commits = fetch_recent_commits()
     open_tasks = fetch_open_tasks()
-    
+
     # Read README
-    with open(README_PATH, "r") as f:
+    with open(README_PATH, "r", encoding="utf-8") as f:
         content = f.read()
-         
+
     # Replace content blocks
     content = update_block(content, "PORTFOLIO", portfolio_md)
     content = update_block(content, "STREAKS", streaks_md)
@@ -308,12 +359,13 @@ def main():
     content = update_block(content, "TASKS", open_tasks)
     content = update_block(content, "AGENTS", agents_md)
     content = update_block(content, "REFLECTION", reflections_md)
-    
+
     # Write back
-    with open(README_PATH, "w") as f:
+    with open(README_PATH, "w", encoding="utf-8") as f:
         f.write(content)
-         
+
     print("README updated successfully.")
+
 
 if __name__ == "__main__":
     main()
