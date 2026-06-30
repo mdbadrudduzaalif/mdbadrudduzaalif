@@ -19,7 +19,7 @@ Building two production-oriented software platforms:
 
 ### 🏗️ Project Portfolio
 <!-- START_PORTFOLIO -->
-### 🚀 Takaa
+### 💰 Takaa
 - **Modules Implemented**: 7
 - **Major Features Remaining**: 3
 - **Current Milestone**: MVP Release Q4 2026
@@ -28,7 +28,7 @@ Building two production-oriented software platforms:
   - Receipt OCR
   - Production deployment pipeline
 
-### 🚀 Domira
+### 🏠 Domira
 - **Systems Implemented**: 9
 - **Major Features Remaining**: 3
 - **Current Milestone**: Beta Launch Q3 2026
@@ -49,13 +49,13 @@ Building two production-oriented software platforms:
       <h4>🔥 Streaks & Stats</h4>
 <!-- START_STREAKS -->
 **🔥 Active Study Streaks**
-- **Algorithms**: 🔥 2 days
+- **Algorithms**: ❄️ 0 days
 - **C#**: ❄️ 0 days
 - **React Native**: ❄️ 0 days
 - **SQL**: ❄️ 0 days
 
 **🏆 Longest Streak**
-- **Algorithms**: 4 days
+- **Algorithms**: 2 days
 - **C#**: 1 day
 - **React Native**: 1 day
 - **SQL**: 3 days
@@ -67,7 +67,7 @@ Building two production-oriented software platforms:
 - **SQL**: `█████░░░░░ 57%`
 - **React Native**: `█░░░░░░░░░ 16%`
 - **C#**: `█░░░░░░░░░ 16%`
-- **Algorithms**: `██░░░░░░░░ 27%`
+- **Algorithms**: `░░░░░░░░░░ 9%`
 <!-- END_LEARNING_PROGRESS -->
     </td>
   </tr>
@@ -104,11 +104,11 @@ Building two production-oriented software platforms:
 #### 🧠 Algorithms & Data Structures (C++)
 - ✅ Linear Search
 - ✅ Binary Search
-- ✅ Bubble Sort
-- ✅ Selection Sort
-- ✅ Insertion Sort
-- ✅ Merge Sort
-- ⏳ Quick Sort
+- ⏳ Bubble Sort
+- ❌ Selection Sort
+- ❌ Insertion Sort
+- ❌ Merge Sort
+- ❌ Quick Sort
 - ❌ Recursion
 - ❌ Divide and Conquer
 - ❌ Greedy Algorithms
@@ -142,9 +142,9 @@ I am experimenting with specialized local AI agents to automate workflows and op
 ### 📅 Daily Reflection
 <!-- START_REFLECTION -->
 **Completed Today**:
-- Logged study for Algorithms (2026-06-29)
-- Logged study for Algorithms (2026-06-28)
-- Logged study for Algorithms (2026-06-24)
+- Logged study for Algorithms (2026-06-22)
+- Logged study for Algorithms (2026-06-21)
+- Logged study for SQL (2026-06-10)
 <!-- END_REFLECTION -->
 
 ---

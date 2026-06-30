@@ -9,7 +9,7 @@ import re
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 README_PATH = os.path.join(BASE_DIR, "README.md")
 LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
-PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
+TAKAA_PATH = os.path.join(BASE_DIR, "data", "takaa.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 def load_yaml(path):
@@ -17,7 +17,7 @@ def load_yaml(path):
         return yaml.safe_load(f)
 
 # 1. Streak & Longest Streak Calculation
-def _parse_log_dates(log_entries):
+def calculate_streaks_stats(log_entries):
     topic_dates = {}
     for entry in log_entries:
         date_str = entry.get("date")
@@ -28,99 +28,72 @@ def _parse_log_dates(log_entries):
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
-    return topic_dates
-
-def _calculate_longest_streak(sorted_dates):
-    longest = 0
-    current_longest = 0
-    prev_date = None
-    for d in sorted_dates:
-        if prev_date is None:
-            current_longest = 1
-        elif (d - prev_date).days == 1:
-            current_longest += 1
-        elif (d - prev_date).days > 1:
-            if current_longest > longest:
-                longest = current_longest
-            current_longest = 1
-        prev_date = d
-    if current_longest > longest:
-        longest = current_longest
-    return longest
-
-def _calculate_current_streak(dates_set):
-    # Try to get timezone offset from environment, default to local system time if not set
-    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
-    tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
-    if tz_offset_hours is not None:
-        try:
-            offset = int(tz_offset_hours)
-            tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
-            today = datetime.datetime.now(tz_offset).date()
-        except ValueError:
-            # Fallback to local time if invalid value
-            today = datetime.date.today()
-    else:
-        today = datetime.date.today()
-
-    yesterday = today - datetime.timedelta(days=1)
-    current = 0
-
-    if today in dates_set:
-        start_date = today
-    elif yesterday in dates_set:
-        start_date = yesterday
-    else:
-        start_date = None
-
-    if start_date:
-        current_date = start_date
-        while current_date in dates_set:
-            current += 1
-            current_date -= datetime.timedelta(days=1)
-
-    return current
-
-def calculate_streaks_stats(log_entries):
-    topic_dates = _parse_log_dates(log_entries)
+    
     stats = {}
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
     
     for topic, dates_set in topic_dates.items():
-        sorted_dates = sorted(dates_set)
+        sorted_dates = sorted(list(dates_set))
         if not sorted_dates:
             stats[topic] = {"current": 0, "longest": 0}
             continue
         
-        longest = _calculate_longest_streak(sorted_dates)
-        current = _calculate_current_streak(dates_set)
+        # Calculate longest streak
+        longest = 0
+        current_longest = 0
+        prev_date = None
+        for d in sorted_dates:
+            if prev_date is None:
+                current_longest = 1
+            elif (d - prev_date).days == 1:
+                current_longest += 1
+            elif (d - prev_date).days > 1:
+                if current_longest > longest:
+                    longest = current_longest
+                current_longest = 1
+            prev_date = d
+        if current_longest > longest:
+            longest = current_longest
+            
+        # Calculate current streak
+        current = 0
+        if today in dates_set:
+            start_date = today
+        elif yesterday in dates_set:
+            start_date = yesterday
+        else:
+            start_date = None
+            
+        if start_date:
+            current_date = start_date
+            while current_date in dates_set:
+                current += 1
+                current_date -= datetime.timedelta(days=1)
         
         stats[topic] = {"current": current, "longest": longest}
         
     return stats
 
-
 def render_streaks_md(streaks_stats):
     if not streaks_stats:
         return "No active streaks."
     
-    sorted_stats = sorted(streaks_stats.items())
-
     lines = ["**🔥 Active Study Streaks**"]
-    for topic, s in sorted_stats:
+    for topic, s in sorted(streaks_stats.items()):
         emoji = "🔥" if s["current"] > 0 else "❄️"
         lines.append(f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}")
     
     lines.append("\n**🏆 Longest Streak**")
-    for topic, s in sorted_stats:
+    for topic, s in sorted(streaks_stats.items()):
         lines.append(f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")
-         
+        
     return "\n".join(lines)
 
 # 2. Render ASCII Progress Bar
 def render_progress_bar(completed, total, length=10):
     if total == 0:
         return "`░░░░░░░░░░ 0%`"
-    completed = min(completed, total)
     percentage = int((completed / total) * 100)
     filled_length = int(length * completed // total)
     bar = "█" * filled_length + "░" * (length - filled_length)
@@ -156,7 +129,7 @@ def process_learning_journey(skills):
             path_lines.append(f"- ⏳ {item}")
         for item in planned:
             path_lines.append(f"- ❌ {item}")
-             
+            
     return "\n".join(progress_lines), "\n".join(path_lines)
 
 # 4. Project Portfolio Generator
@@ -164,15 +137,10 @@ def process_project_portfolio(projects):
     lines = []
     for name, data in projects.items():
         features = data.get("features", [])
-        completed = 0
-        remaining = 0
-        for f in features:
-            if f.get("completed"):
-                completed += 1
-            else:
-                remaining += 1
+        completed = sum(1 for f in features if f.get("completed"))
+        remaining = sum(1 for f in features if not f.get("completed"))
         
-        emoji = data.get("emoji", "🚀")
+        emoji = "💰" if name == "Takaa" else "🏠"
         lines.append(f"### {emoji} {name}")
         lines.append(f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")
         lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")
@@ -201,68 +169,61 @@ def _extract_commits(events):
                 return commits
     return commits
 
-def _fetch_github_api(url):
+# 5. Fetch GitHub Commits
+def fetch_recent_commits():
+    url = "https://api.github.com/users/mdbadrudduzaalif/events"
     headers = {'User-Agent': 'Mozilla/5.0'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
-
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            if isinstance(data, dict) and "message" in data:
-                return f"*(API Error: {data['message']})*"
-            return data
+            events = json.loads(response.read().decode())
+            commits = _extract_commits(events)
+            if not commits:
+                return "No recent public commits found."
+            return "\n".join(commits)
     except Exception as e:
-        return f"*(Failed API request: {str(e)})*"
-
-# 5. Fetch GitHub Commits
-def fetch_recent_commits():
-    url = "https://api.github.com/users/mdbadrudduzaalif/events"
-    events = _fetch_github_api(url)
-    if isinstance(events, str) and events.startswith("*("):
-        return events # return the error string
-
-    commits = _extract_commits(events)
-    if not commits:
-        return "No recent public commits found."
-    return "\n".join(commits)
+        return f"*(Failed to fetch recent commits: {str(e)})*"
 
 # 6. Fetch Open Issues (Tasks)
 def fetch_open_tasks():
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"
-    issues = _fetch_github_api(url)
-    if isinstance(issues, str) and issues.startswith("*("):
-        return issues # return the error string
-
-    tasks = []
-    for issue in issues:
-        if 'pull_request' not in issue:
-            title = issue.get('title', '')
-            number = issue.get('number', '')
-            html_url = issue.get('html_url', '')
-            tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
-        if len(tasks) >= 5:
-            break
-    if not tasks:
-        return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
-    return "\n".join(tasks)
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers['Authorization'] = f"token {token}"
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            issues = json.loads(response.read().decode())
+            tasks = []
+            for issue in issues:
+                if 'pull_request' not in issue:
+                    title = issue.get('title', '')
+                    number = issue.get('number', '')
+                    html_url = issue.get('html_url', '')
+                    tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
+                if len(tasks) >= 5:
+                    break
+            if not tasks:
+                return "*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*"
+            return "\n".join(tasks)
+    except Exception as e:
+        return f"*(Failed to fetch tasks from issues: {str(e)})*"
 
 def update_block(content, tag, new_value):
     start_tag = f"<!-- START_{tag} -->"
     end_tag = f"<!-- END_{tag} -->"
     pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
     replacement = f"{start_tag}\n{new_value}\n{end_tag}"
-    return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
+    return re.sub(pattern, replacement, content, flags=re.DOTALL)
 
 def main():
-    if not os.environ.get("GITHUB_TOKEN"):
-        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")
-
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
-    projects_data = load_yaml(PROJECTS_PATH)
+    takaa_data = load_yaml(TAKAA_PATH)
     agents_data = load_yaml(AGENTS_PATH)
     
     # Process Streaks
@@ -274,7 +235,7 @@ def main():
     progress_md, path_md = process_learning_journey(skills)
     
     # Process Project Portfolio
-    projects = projects_data.get("projects", {})
+    projects = takaa_data.get("projects", {})
     portfolio_md = process_project_portfolio(projects)
     
     # Process Agent Lab
@@ -298,7 +259,7 @@ def main():
     # Read README
     with open(README_PATH, "r") as f:
         content = f.read()
-         
+        
     # Replace content blocks
     content = update_block(content, "PORTFOLIO", portfolio_md)
     content = update_block(content, "STREAKS", streaks_md)
@@ -312,7 +273,7 @@ def main():
     # Write back
     with open(README_PATH, "w") as f:
         f.write(content)
-         
+        
     print("README updated successfully.")
 
 if __name__ == "__main__":
