@@ -79,5 +79,34 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(render_progress_bar(10, 10), "`██████████ 100%`")
         self.assertEqual(render_progress_bar(3, 10), "`███░░░░░░░ 30%`")
 
+
+    def test_longest_streak_with_missing_dates(self):
+        dates_with_gap = [
+            datetime.date(2023, 1, 1),
+            datetime.date(2023, 1, 3),
+        ]
+        self.assertEqual(_calculate_longest_streak(dates_with_gap), 1)
+
+    def test_longest_streak_all_consecutive(self):
+        dates_consecutive = [
+            datetime.date(2023, 1, 1),
+            datetime.date(2023, 1, 2),
+            datetime.date(2023, 1, 3),
+        ]
+        self.assertEqual(_calculate_longest_streak(dates_consecutive), 3)
+
+    def test_longest_streak_duplicate_dates(self):
+        dates_duplicate = [
+            datetime.date(2023, 1, 1),
+            datetime.date(2023, 1, 1),
+            datetime.date(2023, 1, 2),
+        ]
+        self.assertEqual(_calculate_longest_streak(dates_duplicate), 2)
+
+    def test_render_progress_bar_edge_cases(self):
+        # Already tests 0,0 and 0,10. Let's test negative maybe? Or completed > total
+        self.assertEqual(render_progress_bar(15, 10), "`██████████ 100%`")
+
+
 if __name__ == "__main__":
     unittest.main()
