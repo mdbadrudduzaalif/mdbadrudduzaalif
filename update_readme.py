@@ -140,7 +140,7 @@ def render_progress_bar(completed, total, length=10):
     if total == 0:
         return "`░░░░░░░░░░ 0%`"
     completed = min(completed, total)
-    percentage = int((completed / total) * 100)
+    percentage = int(completed * 100 / total)
     filled_length = int(length * completed // total)
     prog_bar = "█" * filled_length + "░" * (length - filled_length)
     return f"`{prog_bar} {percentage}%`"
@@ -201,7 +201,7 @@ def process_project_portfolio(projects):
         lines.append(f"### {emoji} {name}")
         lines.append(
             f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")  # noqa: E501  # pylint: disable=line-too-long
-        lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")  # pylint: disable=line-too-long
+        lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")  # noqa: E501  # pylint: disable=line-too-long
         lines.append(
             f"- **Current Milestone**: {data.get('milestone', 'MVP')}")
         lines.append("- **Current Focus**:")
@@ -248,9 +248,9 @@ def _fetch_github_api(url):
             if isinstance(data, dict) and "message" in data:
                 return f"*(API Error: {data['message']})*"
             return data
-    except urllib.error.URLError as e:
+    except urllib.error.HTTPError as e:
         return f"*(Failed API request: {str(e)})*"
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except urllib.error.URLError as e:
         return f"*(Failed API request: {str(e)})*"
 
 # 5. Fetch GitHub Commits
