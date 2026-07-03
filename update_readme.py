@@ -17,9 +17,16 @@ AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 
 def load_yaml(path):
-    """Load YAML file."""
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """Load YAML file safely."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        print(f"Warning: File not found at {path}")
+        return {}
+    except yaml.YAMLError as e:
+        print(f"Warning: Error parsing YAML file at {path}: {e}")
+        return {}
 
 # 1. Streak & Longest Streak Calculation
 
@@ -99,11 +106,11 @@ def calculate_streaks_stats(log_entries):
     stats = {}
 
     for topic, dates_set in topic_dates.items():
-        sorted_dates = sorted(dates_set)
-        if not sorted_dates:
+        if not dates_set:
             stats[topic] = {"current": 0, "longest": 0}
             continue
 
+        sorted_dates = sorted(dates_set)
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
 
@@ -248,6 +255,8 @@ def _fetch_github_api(url):
             if isinstance(data, dict) and "message" in data:
                 return f"*(API Error: {data['message']})*"
             return data
+    except json.JSONDecodeError as e:
+        return f"*(Failed to parse JSON: {str(e)})*"
     except urllib.error.HTTPError as e:
         return f"*(Failed API request: {str(e)})*"
     except urllib.error.URLError as e:
@@ -361,10 +370,18 @@ def main():
     content = update_block(content, "REFLECTION", reflections_md)
 
     # Write back
-    with open(README_PATH, "w", encoding="utf-8") as f:
-        f.write(content)
+    try:
+        with open(README_PATH, "r", encoding="utf-8") as f:
+            old_content = f.read()
+    except FileNotFoundError:
+        old_content = ""
 
-    print("README updated successfully.")
+    if content != old_content:
+        with open(README_PATH, "w", encoding="utf-8") as f:
+            f.write(content)
+        print("README updated successfully.")
+    else:
+        print("README content is already up-to-date. No rewrite needed.")
 
 
 if __name__ == "__main__":
