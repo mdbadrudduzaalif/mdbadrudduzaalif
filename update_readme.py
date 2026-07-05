@@ -1,10 +1,12 @@
 """Module to update README.md with learning streaks and project info."""
 import datetime
+import html
 import json
 import os
 import re
-import urllib.request
 import urllib.error
+import urllib.request
+from typing import Dict, List, Optional, Tuple, Union
 
 import yaml
 
@@ -24,10 +26,15 @@ def load_yaml(path):
 # 1. Streak & Longest Streak Calculation
 
 
-def _parse_log_dates(log_entries):
+def _parse_log_dates(log_entries: List[Dict[str, str]]) -> Dict[str, set]:
     """Parse log dates."""
     topic_dates = {}
+    if not isinstance(log_entries, list):
+        return topic_dates
+
     for entry in log_entries:
+        if not isinstance(entry, dict):
+            continue
         date_str = entry.get("date")
         topic = entry.get("topic")
         if date_str and topic:
@@ -40,7 +47,7 @@ def _parse_log_dates(log_entries):
     return topic_dates
 
 
-def _calculate_longest_streak(sorted_dates):
+def _calculate_longest_streak(sorted_dates: List[datetime.date]) -> int:
     """Calculate longest streak."""
     longest = 0
     current_longest = 0
@@ -58,7 +65,7 @@ def _calculate_longest_streak(sorted_dates):
     return longest
 
 
-def _calculate_current_streak(dates_set):
+def _calculate_current_streak(dates_set: set) -> int:
     """Calculate current streak."""
     # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
     # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
@@ -93,7 +100,9 @@ def _calculate_current_streak(dates_set):
     return current
 
 
-def calculate_streaks_stats(log_entries):
+def calculate_streaks_stats(
+    log_entries: List[Dict[str, str]]
+) -> Dict[str, Dict[str, int]]:
     """Calculate streak stats."""
     topic_dates = _parse_log_dates(log_entries)
     stats = {}
@@ -112,7 +121,7 @@ def calculate_streaks_stats(log_entries):
     return stats
 
 
-def render_streaks_md(streaks_stats):
+def render_streaks_md(streaks_stats: Dict[str, Dict[str, int]]) -> str:
     """Render streaks MD."""
     if not streaks_stats:
         return "No active streaks."
@@ -135,11 +144,11 @@ def render_streaks_md(streaks_stats):
 # 2. Render ASCII Progress Bar
 
 
-def render_progress_bar(completed, total, length=10):
+def render_progress_bar(completed: int, total: int, length: int = 10) -> str:
     """Render progress bar."""
     if total == 0:
         return "`░░░░░░░░░░ 0%`"
-    completed = min(completed, total)
+    completed = max(0, min(completed, total))
     percentage = int(completed * 100 / total)
     filled_length = int(length * completed // total)
     prog_bar = "█" * filled_length + "░" * (length - filled_length)
@@ -219,6 +228,7 @@ def _extract_commits(events):
         if event.get('type') != 'PushEvent':
             continue
         repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
+        repo_name = html.escape(repo_name)
         for commit in event.get('payload', {}).get('commits', []):
             message = commit.get('message', '').split('\n')[0]
             sha = commit.get('sha', '')[:7]
@@ -226,6 +236,11 @@ def _extract_commits(events):
                     "Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
+
+            # Sanitize message
+            message = html.escape(message).replace(
+                "[", "&#91;").replace("]", "&#93;")
+
             commits.append(
                 f"- **{repo_name}**: {message} ([`{sha}`]"
                 f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501
@@ -234,7 +249,7 @@ def _extract_commits(events):
     return commits
 
 
-def _fetch_github_api(url):
+def _fetch_github_api(url: str) -> Tuple[Optional[Union[Dict, List]], Optional[str]]:  # noqa: E501
     """Fetch github API."""
     headers = {'User-Agent': 'Mozilla/5.0'}
     token = os.environ.get("GITHUB_TOKEN")
@@ -246,12 +261,12 @@ def _fetch_github_api(url):
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode())
             if isinstance(data, dict) and "message" in data:
-                return f"*(API Error: {data['message']})*"
-            return data
+                return None, f"*(API Error: {data['message']})*"
+            return data, None
     except urllib.error.HTTPError as e:
-        return f"*(Failed API request: {str(e)})*"
+        return None, f"*(Failed API request: {str(e)})*"
     except urllib.error.URLError as e:
-        return f"*(Failed API request: {str(e)})*"
+        return None, f"*(Failed API request: {str(e)})*"
 
 # 5. Fetch GitHub Commits
 
@@ -259,9 +274,13 @@ def _fetch_github_api(url):
 def fetch_recent_commits():
     """Fetch recent commits."""
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
-    events = _fetch_github_api(url)
-    if isinstance(events, str) and events.startswith("*("):
-        return events  # return the error string
+    events, error = _fetch_github_api(url)
+    if error:
+        return error  # return the error string
+
+    # Although API returns valid data, making sure it's a list
+    if not isinstance(events, list):
+        return "*(Failed API request: Unexpected data format)*"
 
     commits = _extract_commits(events)
     if not commits:
@@ -274,14 +293,19 @@ def fetch_recent_commits():
 def fetch_open_tasks():
     """Fetch open tasks."""
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"  # noqa: E501  # pylint: disable=line-too-long
-    issues = _fetch_github_api(url)
-    if isinstance(issues, str) and issues.startswith("*("):
-        return issues  # return the error string
+    issues, error = _fetch_github_api(url)
+    if error:
+        return error  # return the error string
+
+    if not isinstance(issues, list):
+        return "*(Failed API request: Unexpected data format)*"
 
     tasks = []
     for issue in issues:
         if 'pull_request' not in issue:
             title = issue.get('title', '')
+            title = html.escape(title).replace(
+                "[", "&#91;").replace("]", "&#93;")
             number = issue.get('number', '')
             html_url = issue.get('html_url', '')
             tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
