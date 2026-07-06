@@ -1,12 +1,10 @@
 """Module to update README.md with learning streaks and project info."""
 import datetime
-import html
 import json
 import os
 import re
-import urllib.error
 import urllib.request
-from typing import Dict, List, Optional, Tuple, Union
+import urllib.error
 
 import yaml
 
@@ -19,22 +17,24 @@ AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 
 def load_yaml(path):
-    """Load YAML file."""
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """Load YAML file safely."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        print(f"Warning: File not found at {path}")
+        return {}
+    except yaml.YAMLError as e:
+        print(f"Warning: Error parsing YAML file at {path}: {e}")
+        return {}
 
 # 1. Streak & Longest Streak Calculation
 
 
-def _parse_log_dates(log_entries: List[Dict[str, str]]) -> Dict[str, set]:
+def _parse_log_dates(log_entries):
     """Parse log dates."""
     topic_dates = {}
-    if not isinstance(log_entries, list):
-        return topic_dates
-
     for entry in log_entries:
-        if not isinstance(entry, dict):
-            continue
         date_str = entry.get("date")
         topic = entry.get("topic")
         if date_str and topic:
@@ -47,7 +47,7 @@ def _parse_log_dates(log_entries: List[Dict[str, str]]) -> Dict[str, set]:
     return topic_dates
 
 
-def _calculate_longest_streak(sorted_dates: List[datetime.date]) -> int:
+def _calculate_longest_streak(sorted_dates):
     """Calculate longest streak."""
     longest = 0
     current_longest = 0
@@ -65,7 +65,7 @@ def _calculate_longest_streak(sorted_dates: List[datetime.date]) -> int:
     return longest
 
 
-def _calculate_current_streak(dates_set: set) -> int:
+def _calculate_current_streak(dates_set):
     """Calculate current streak."""
     # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
     # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
@@ -100,19 +100,17 @@ def _calculate_current_streak(dates_set: set) -> int:
     return current
 
 
-def calculate_streaks_stats(
-    log_entries: List[Dict[str, str]]
-) -> Dict[str, Dict[str, int]]:
+def calculate_streaks_stats(log_entries):
     """Calculate streak stats."""
     topic_dates = _parse_log_dates(log_entries)
     stats = {}
 
     for topic, dates_set in topic_dates.items():
-        sorted_dates = sorted(dates_set)
-        if not sorted_dates:
+        if not dates_set:
             stats[topic] = {"current": 0, "longest": 0}
             continue
 
+        sorted_dates = sorted(dates_set)
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
 
@@ -121,7 +119,7 @@ def calculate_streaks_stats(
     return stats
 
 
-def render_streaks_md(streaks_stats: Dict[str, Dict[str, int]]) -> str:
+def render_streaks_md(streaks_stats):
     """Render streaks MD."""
     if not streaks_stats:
         return "No active streaks."
@@ -144,11 +142,11 @@ def render_streaks_md(streaks_stats: Dict[str, Dict[str, int]]) -> str:
 # 2. Render ASCII Progress Bar
 
 
-def render_progress_bar(completed: int, total: int, length: int = 10) -> str:
+def render_progress_bar(completed, total, length=10):
     """Render progress bar."""
     if total == 0:
         return "`░░░░░░░░░░ 0%`"
-    completed = max(0, min(completed, total))
+    completed = min(completed, total)
     percentage = int(completed * 100 / total)
     filled_length = int(length * completed // total)
     prog_bar = "█" * filled_length + "░" * (length - filled_length)
@@ -228,7 +226,6 @@ def _extract_commits(events):
         if event.get('type') != 'PushEvent':
             continue
         repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
-        repo_name = html.escape(repo_name)
         for commit in event.get('payload', {}).get('commits', []):
             message = commit.get('message', '').split('\n')[0]
             sha = commit.get('sha', '')[:7]
@@ -236,11 +233,6 @@ def _extract_commits(events):
                     "Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
-
-            # Sanitize message
-            message = html.escape(message).replace(
-                "[", "&#91;").replace("]", "&#93;")
-
             commits.append(
                 f"- **{repo_name}**: {message} ([`{sha}`]"
                 f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501
@@ -249,7 +241,7 @@ def _extract_commits(events):
     return commits
 
 
-def _fetch_github_api(url: str) -> Tuple[Optional[Union[Dict, List]], Optional[str]]:  # noqa: E501
+def _fetch_github_api(url):
     """Fetch github API."""
     headers = {'User-Agent': 'Mozilla/5.0'}
     token = os.environ.get("GITHUB_TOKEN")
@@ -261,12 +253,14 @@ def _fetch_github_api(url: str) -> Tuple[Optional[Union[Dict, List]], Optional[s
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode())
             if isinstance(data, dict) and "message" in data:
-                return None, f"*(API Error: {data['message']})*"
-            return data, None
+                return f"*(API Error: {data['message']})*"
+            return data
+    except json.JSONDecodeError as e:
+        return f"*(Failed to parse JSON: {str(e)})*"
     except urllib.error.HTTPError as e:
-        return None, f"*(Failed API request: {str(e)})*"
+        return f"*(Failed API request: {str(e)})*"
     except urllib.error.URLError as e:
-        return None, f"*(Failed API request: {str(e)})*"
+        return f"*(Failed API request: {str(e)})*"
 
 # 5. Fetch GitHub Commits
 
@@ -274,13 +268,9 @@ def _fetch_github_api(url: str) -> Tuple[Optional[Union[Dict, List]], Optional[s
 def fetch_recent_commits():
     """Fetch recent commits."""
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
-    events, error = _fetch_github_api(url)
-    if error:
-        return error  # return the error string
-
-    # Although API returns valid data, making sure it's a list
-    if not isinstance(events, list):
-        return "*(Failed API request: Unexpected data format)*"
+    events = _fetch_github_api(url)
+    if isinstance(events, str) and events.startswith("*("):
+        return events  # return the error string
 
     commits = _extract_commits(events)
     if not commits:
@@ -293,19 +283,14 @@ def fetch_recent_commits():
 def fetch_open_tasks():
     """Fetch open tasks."""
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"  # noqa: E501  # pylint: disable=line-too-long
-    issues, error = _fetch_github_api(url)
-    if error:
-        return error  # return the error string
-
-    if not isinstance(issues, list):
-        return "*(Failed API request: Unexpected data format)*"
+    issues = _fetch_github_api(url)
+    if isinstance(issues, str) and issues.startswith("*("):
+        return issues  # return the error string
 
     tasks = []
     for issue in issues:
         if 'pull_request' not in issue:
             title = issue.get('title', '')
-            title = html.escape(title).replace(
-                "[", "&#91;").replace("]", "&#93;")
             number = issue.get('number', '')
             html_url = issue.get('html_url', '')
             tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
@@ -385,10 +370,18 @@ def main():
     content = update_block(content, "REFLECTION", reflections_md)
 
     # Write back
-    with open(README_PATH, "w", encoding="utf-8") as f:
-        f.write(content)
+    try:
+        with open(README_PATH, "r", encoding="utf-8") as f:
+            old_content = f.read()
+    except FileNotFoundError:
+        old_content = ""
 
-    print("README updated successfully.")
+    if content != old_content:
+        with open(README_PATH, "w", encoding="utf-8") as f:
+            f.write(content)
+        print("README updated successfully.")
+    else:
+        print("README content is already up-to-date. No rewrite needed.")
 
 
 if __name__ == "__main__":
