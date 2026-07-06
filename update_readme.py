@@ -6,7 +6,6 @@ import re
 import urllib.request
 import urllib.error
 
-from typing import Any, Dict, List, Set, Tuple, Union
 import yaml
 
 # Paths
@@ -17,20 +16,22 @@ PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 
-def load_yaml(path: str) -> Dict[str, Any]:
-    """Load YAML file."""
+def load_yaml(path):
+    """Load YAML file safely."""
     try:
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
-    except (FileNotFoundError, yaml.YAMLError) as e:
-        print(f"Error loading YAML from {path}: {e}")
+    except FileNotFoundError:
+        print(f"Warning: File not found at {path}")
+        return {}
+    except yaml.YAMLError as e:
+        print(f"Warning: Error parsing YAML file at {path}: {e}")
         return {}
 
 # 1. Streak & Longest Streak Calculation
 
 
-def _parse_log_dates(log_entries: List[Dict[str, str]]) \
-        -> Dict[str, Set[datetime.date]]:
+def _parse_log_dates(log_entries):
     """Parse log dates."""
     topic_dates = {}
     for entry in log_entries:
@@ -46,7 +47,7 @@ def _parse_log_dates(log_entries: List[Dict[str, str]]) \
     return topic_dates
 
 
-def _calculate_longest_streak(sorted_dates: List[datetime.date]) -> int:
+def _calculate_longest_streak(sorted_dates):
     """Calculate longest streak."""
     longest = 0
     current_longest = 0
@@ -64,7 +65,7 @@ def _calculate_longest_streak(sorted_dates: List[datetime.date]) -> int:
     return longest
 
 
-def _calculate_current_streak(dates_set: Set[datetime.date]) -> int:
+def _calculate_current_streak(dates_set):
     """Calculate current streak."""
     # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
     # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
@@ -99,18 +100,17 @@ def _calculate_current_streak(dates_set: Set[datetime.date]) -> int:
     return current
 
 
-def calculate_streaks_stats(log_entries: List[Dict[str, str]]) \
-        -> Dict[str, Dict[str, int]]:
+def calculate_streaks_stats(log_entries):
     """Calculate streak stats."""
     topic_dates = _parse_log_dates(log_entries)
     stats = {}
 
     for topic, dates_set in topic_dates.items():
-        sorted_dates = sorted(dates_set)
-        if not sorted_dates:
+        if not dates_set:
             stats[topic] = {"current": 0, "longest": 0}
             continue
 
+        sorted_dates = sorted(dates_set)
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
 
@@ -119,7 +119,7 @@ def calculate_streaks_stats(log_entries: List[Dict[str, str]]) \
     return stats
 
 
-def render_streaks_md(streaks_stats: Dict[str, Dict[str, int]]) -> str:
+def render_streaks_md(streaks_stats):
     """Render streaks MD."""
     if not streaks_stats:
         return "No active streaks."
@@ -142,7 +142,7 @@ def render_streaks_md(streaks_stats: Dict[str, Dict[str, int]]) -> str:
 # 2. Render ASCII Progress Bar
 
 
-def render_progress_bar(completed: int, total: int, length: int = 10) -> str:
+def render_progress_bar(completed, total, length=10):
     """Render progress bar."""
     if total == 0:
         return "`░░░░░░░░░░ 0%`"
@@ -155,8 +155,7 @@ def render_progress_bar(completed: int, total: int, length: int = 10) -> str:
 # 3. Learning Progress and Path Logic
 
 
-def process_learning_journey(skills: Dict[str, Dict[str, List[str]]]) \
-        -> Tuple[str, str]:
+def process_learning_journey(skills):
     """Process learning journey."""
     progress_lines = []
     path_lines = []
@@ -192,7 +191,7 @@ def process_learning_journey(skills: Dict[str, Dict[str, List[str]]]) \
 # 4. Project Portfolio Generator
 
 
-def process_project_portfolio(projects: Dict[str, Any]) -> str:
+def process_project_portfolio(projects):
     """Process project portfolio."""
     lines = []
     for name, data in projects.items():
@@ -219,7 +218,7 @@ def process_project_portfolio(projects: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _extract_commits(events: List[Dict[str, Any]]) -> Union[List[str], str]:
+def _extract_commits(events):
     """Extract commits."""
     commits = []
     seen_commits = set()
@@ -242,8 +241,7 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[List[str], str]:
     return commits
 
 
-def _fetch_github_api(url: str) \
-        -> Union[List[Dict[str, Any]], Dict[str, Any], str]:
+def _fetch_github_api(url):
     """Fetch github API."""
     headers = {'User-Agent': 'Mozilla/5.0'}
     token = os.environ.get("GITHUB_TOKEN")
@@ -257,6 +255,8 @@ def _fetch_github_api(url: str) \
             if isinstance(data, dict) and "message" in data:
                 return f"*(API Error: {data['message']})*"
             return data
+    except json.JSONDecodeError as e:
+        return f"*(Failed to parse JSON: {str(e)})*"
     except urllib.error.HTTPError as e:
         return f"*(Failed API request: {str(e)})*"
     except urllib.error.URLError as e:
@@ -265,7 +265,7 @@ def _fetch_github_api(url: str) \
 # 5. Fetch GitHub Commits
 
 
-def fetch_recent_commits() -> str:
+def fetch_recent_commits():
     """Fetch recent commits."""
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
     events = _fetch_github_api(url)
@@ -280,7 +280,7 @@ def fetch_recent_commits() -> str:
 # 6. Fetch Open Issues (Tasks)
 
 
-def fetch_open_tasks() -> str:
+def fetch_open_tasks():
     """Fetch open tasks."""
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"  # noqa: E501  # pylint: disable=line-too-long
     issues = _fetch_github_api(url)
@@ -302,7 +302,7 @@ def fetch_open_tasks() -> str:
     return "\n".join(tasks)
 
 
-def update_block(content: str, tag: str, new_value: str) -> str:
+def update_block(content, tag, new_value):
     """Update block."""
     start_tag = f"<!-- START_{tag} -->"
     end_tag = f"<!-- END_{tag} -->"
@@ -311,7 +311,7 @@ def update_block(content: str, tag: str, new_value: str) -> str:
     return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 
-def main() -> None:
+def main():
     """Main function."""
     # pylint: disable=too-many-locals
     if not os.environ.get("GITHUB_TOKEN"):
@@ -356,12 +356,8 @@ def main() -> None:
     open_tasks = fetch_open_tasks()
 
     # Read README
-    try:
-        with open(README_PATH, "r", encoding="utf-8") as f:
-            content = f.read()
-    except FileNotFoundError:
-        print(f"Error: {README_PATH} not found.")
-        return
+    with open(README_PATH, "r", encoding="utf-8") as f:
+        content = f.read()
 
     # Replace content blocks
     content = update_block(content, "PORTFOLIO", portfolio_md)
@@ -375,11 +371,17 @@ def main() -> None:
 
     # Write back
     try:
+        with open(README_PATH, "r", encoding="utf-8") as f:
+            old_content = f.read()
+    except FileNotFoundError:
+        old_content = ""
+
+    if content != old_content:
         with open(README_PATH, "w", encoding="utf-8") as f:
             f.write(content)
         print("README updated successfully.")
-    except IOError as e:
-        print(f"Error writing to {README_PATH}: {e}")
+    else:
+        print("README content is already up-to-date. No rewrite needed.")
 
 
 if __name__ == "__main__":
