@@ -1,9 +1,33 @@
 import unittest
 import datetime
 import os
-from update_readme import _calculate_longest_streak, _calculate_current_streak, render_progress_bar
+from update_readme import _calculate_longest_streak, _calculate_current_streak, render_progress_bar, _get_today, load_yaml
 
 class TestUpdateReadme(unittest.TestCase):
+    def test_load_yaml_missing(self):
+        # Should return empty dict for non-existent file
+        self.assertEqual(load_yaml("non_existent_file.yml"), {})
+
+    def test_get_today(self):
+        # Test without TZ_OFFSET_HOURS
+        if "TZ_OFFSET_HOURS" in os.environ:
+            del os.environ["TZ_OFFSET_HOURS"]
+        self.assertEqual(_get_today(), datetime.date.today())
+
+        # Test with TZ_OFFSET_HOURS
+        os.environ["TZ_OFFSET_HOURS"] = "6"
+        tz_offset = datetime.timezone(datetime.timedelta(hours=6))
+        expected_today = datetime.datetime.now(tz_offset).date()
+        self.assertEqual(_get_today(), expected_today)
+
+        # Test with invalid TZ_OFFSET_HOURS
+        os.environ["TZ_OFFSET_HOURS"] = "invalid"
+        self.assertEqual(_get_today(), datetime.date.today())
+
+        # Cleanup
+        if "TZ_OFFSET_HOURS" in os.environ:
+            del os.environ["TZ_OFFSET_HOURS"]
+
     def test_calculate_current_streak_head(self):
         os.environ["TZ_OFFSET_HOURS"] = "6"
         tz_offset = datetime.timezone(datetime.timedelta(hours=6))
@@ -40,6 +64,9 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(_calculate_longest_streak(dates_single), 1)
 
     def test_current_streak(self):
+        if "TZ_OFFSET_HOURS" in os.environ:
+            del os.environ["TZ_OFFSET_HOURS"]
+
         today = datetime.date.today()
         yesterday = today - datetime.timedelta(days=1)
         two_days_ago = today - datetime.timedelta(days=2)

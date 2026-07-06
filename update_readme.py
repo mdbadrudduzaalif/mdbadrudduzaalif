@@ -17,9 +17,15 @@ AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 
 def load_yaml(path):
-    """Load YAML file."""
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """Load YAML file gracefully."""
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data if data is not None else {}
+    except (yaml.YAMLError, OSError):
+        return {}
 
 # 1. Streak & Longest Streak Calculation
 
@@ -58,21 +64,22 @@ def _calculate_longest_streak(sorted_dates):
     return longest
 
 
-def _calculate_current_streak(dates_set):
-    """Calculate current streak."""
-    # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
-    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
+def _get_today():
+    """Get today's date considering timezone offset."""
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
             offset = int(tz_offset_hours)
             tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
-            today = datetime.datetime.now(tz_offset).date()
+            return datetime.datetime.now(tz_offset).date()
         except ValueError:
-            # Fallback to local time if invalid value
-            today = datetime.date.today()
-    else:
-        today = datetime.date.today()
+            return datetime.date.today()
+    return datetime.date.today()
+
+
+def _calculate_current_streak(dates_set):
+    """Calculate current streak."""
+    today = _get_today()
 
     yesterday = today - datetime.timedelta(days=1)
     current = 0
@@ -137,9 +144,9 @@ def render_streaks_md(streaks_stats):
 
 def render_progress_bar(completed, total, length=10):
     """Render progress bar."""
-    if total == 0:
+    if total <= 0:
         return "`░░░░░░░░░░ 0%`"
-    completed = min(completed, total)
+    completed = max(0, min(completed, total))
     percentage = int(completed * 100 / total)
     filled_length = int(length * completed // total)
     prog_bar = "█" * filled_length + "░" * (length - filled_length)
@@ -189,13 +196,8 @@ def process_project_portfolio(projects):
     lines = []
     for name, data in projects.items():
         features = data.get("features", [])
-        completed = 0
-        remaining = 0
-        for f in features:
-            if f.get("completed"):
-                completed += 1
-            else:
-                remaining += 1
+        completed = sum(1 for f in features if f.get("completed"))
+        remaining = len(features) - completed
 
         emoji = data.get("emoji", "🚀")
         lines.append(f"### {emoji} {name}")
@@ -302,9 +304,40 @@ def update_block(content, tag, new_value):
     return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 
+def build_agents_md(agents_data):
+    """Build agents markdown."""
+    agent_lines = []
+    for a in agents_data.get("agents", []):
+        emoji = "🟢" if a.get("status") == "Active" else "🟡"
+        agent_lines.append(
+            f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")  # noqa: E501
+    return "\n".join(agent_lines)
+
+
+def build_reflections_md(learning_log):
+    """Build reflections markdown."""
+    today_refl = learning_log.get("log", [])[:3]
+    completed_today_lines = []
+    for r in today_refl:
+        completed_today_lines.append(
+            f"- Logged study for {r.get('topic')} ({r.get('date')})")
+    return "**Completed Today**:\n" + "\n".join(completed_today_lines)
+
+
+def update_readme_file(blocks):
+    """Update README file with the provided blocks."""
+    with open(README_PATH, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    for tag, new_value in blocks.items():
+        content = update_block(content, tag, new_value)
+
+    with open(README_PATH, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
 def main():
     """Main function."""
-    # pylint: disable=too-many-locals
     if not os.environ.get("GITHUB_TOKEN"):
         print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
 
@@ -325,45 +358,26 @@ def main():
     projects = projects_data.get("projects", {})
     portfolio_md = process_project_portfolio(projects)
 
-    # Process Agent Lab
-    agent_lines = []
-    for a in agents_data.get("agents", []):
-        emoji = "🟢" if a.get("status") == "Active" else "🟡"
-        agent_lines.append(
-            f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")  # noqa: E501
-    agents_md = "\n".join(agent_lines)
-
-    # Process reflections from dates studied
-    today_refl = learning_log.get("log", [])[:3]
-    completed_today_lines = []
-    for r in today_refl:
-        completed_today_lines.append(
-            f"- Logged study for {r.get('topic')} ({r.get('date')})")
-    reflections_md = "**Completed Today**:\n" + \
-        "\n".join(completed_today_lines)
+    # Process Agent Lab & Reflections
+    agents_md = build_agents_md(agents_data)
+    reflections_md = build_reflections_md(learning_log)
 
     # API Fetches
     recent_commits = fetch_recent_commits()
     open_tasks = fetch_open_tasks()
 
-    # Read README
-    with open(README_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    # Replace content blocks
-    content = update_block(content, "PORTFOLIO", portfolio_md)
-    content = update_block(content, "STREAKS", streaks_md)
-    content = update_block(content, "LEARNING_PROGRESS", progress_md)
-    content = update_block(content, "LEARNING_PATH", path_md)
-    content = update_block(content, "COMMITS", recent_commits)
-    content = update_block(content, "TASKS", open_tasks)
-    content = update_block(content, "AGENTS", agents_md)
-    content = update_block(content, "REFLECTION", reflections_md)
-
-    # Write back
-    with open(README_PATH, "w", encoding="utf-8") as f:
-        f.write(content)
-
+    # Update README
+    blocks = {
+        "PORTFOLIO": portfolio_md,
+        "STREAKS": streaks_md,
+        "LEARNING_PROGRESS": progress_md,
+        "LEARNING_PATH": path_md,
+        "COMMITS": recent_commits,
+        "TASKS": open_tasks,
+        "AGENTS": agents_md,
+        "REFLECTION": reflections_md
+    }
+    update_readme_file(blocks)
     print("README updated successfully.")
 
 
