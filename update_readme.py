@@ -6,6 +6,7 @@ import re
 import urllib.request
 import urllib.error
 
+from typing import Any, Dict, List, Set, Tuple, Union
 import yaml
 
 # Paths
@@ -16,21 +17,20 @@ PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
 
-def load_yaml(path):
-    """Load YAML file gracefully."""
-    if not os.path.exists(path):
-        return {}
+def load_yaml(path: str) -> Dict[str, Any]:
+    """Load YAML file."""
     try:
         with open(path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-            return data if data is not None else {}
-    except (yaml.YAMLError, OSError):
+            return yaml.safe_load(f) or {}
+    except (FileNotFoundError, yaml.YAMLError) as e:
+        print(f"Error loading YAML from {path}: {e}")
         return {}
 
 # 1. Streak & Longest Streak Calculation
 
 
-def _parse_log_dates(log_entries):
+def _parse_log_dates(log_entries: List[Dict[str, str]]) \
+        -> Dict[str, Set[datetime.date]]:
     """Parse log dates."""
     topic_dates = {}
     for entry in log_entries:
@@ -46,7 +46,7 @@ def _parse_log_dates(log_entries):
     return topic_dates
 
 
-def _calculate_longest_streak(sorted_dates):
+def _calculate_longest_streak(sorted_dates: List[datetime.date]) -> int:
     """Calculate longest streak."""
     longest = 0
     current_longest = 0
@@ -64,22 +64,21 @@ def _calculate_longest_streak(sorted_dates):
     return longest
 
 
-def _get_today():
-    """Get today's date considering timezone offset."""
+def _calculate_current_streak(dates_set: Set[datetime.date]) -> int:
+    """Calculate current streak."""
+    # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
+    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
             offset = int(tz_offset_hours)
             tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
-            return datetime.datetime.now(tz_offset).date()
+            today = datetime.datetime.now(tz_offset).date()
         except ValueError:
-            return datetime.date.today()
-    return datetime.date.today()
-
-
-def _calculate_current_streak(dates_set):
-    """Calculate current streak."""
-    today = _get_today()
+            # Fallback to local time if invalid value
+            today = datetime.date.today()
+    else:
+        today = datetime.date.today()
 
     yesterday = today - datetime.timedelta(days=1)
     current = 0
@@ -100,7 +99,8 @@ def _calculate_current_streak(dates_set):
     return current
 
 
-def calculate_streaks_stats(log_entries):
+def calculate_streaks_stats(log_entries: List[Dict[str, str]]) \
+        -> Dict[str, Dict[str, int]]:
     """Calculate streak stats."""
     topic_dates = _parse_log_dates(log_entries)
     stats = {}
@@ -119,7 +119,7 @@ def calculate_streaks_stats(log_entries):
     return stats
 
 
-def render_streaks_md(streaks_stats):
+def render_streaks_md(streaks_stats: Dict[str, Dict[str, int]]) -> str:
     """Render streaks MD."""
     if not streaks_stats:
         return "No active streaks."
@@ -142,11 +142,11 @@ def render_streaks_md(streaks_stats):
 # 2. Render ASCII Progress Bar
 
 
-def render_progress_bar(completed, total, length=10):
+def render_progress_bar(completed: int, total: int, length: int = 10) -> str:
     """Render progress bar."""
-    if total <= 0:
+    if total == 0:
         return "`░░░░░░░░░░ 0%`"
-    completed = max(0, min(completed, total))
+    completed = min(completed, total)
     percentage = int(completed * 100 / total)
     filled_length = int(length * completed // total)
     prog_bar = "█" * filled_length + "░" * (length - filled_length)
@@ -155,7 +155,8 @@ def render_progress_bar(completed, total, length=10):
 # 3. Learning Progress and Path Logic
 
 
-def process_learning_journey(skills):
+def process_learning_journey(skills: Dict[str, Dict[str, List[str]]]) \
+        -> Tuple[str, str]:
     """Process learning journey."""
     progress_lines = []
     path_lines = []
@@ -191,13 +192,18 @@ def process_learning_journey(skills):
 # 4. Project Portfolio Generator
 
 
-def process_project_portfolio(projects):
+def process_project_portfolio(projects: Dict[str, Any]) -> str:
     """Process project portfolio."""
     lines = []
     for name, data in projects.items():
         features = data.get("features", [])
-        completed = sum(1 for f in features if f.get("completed"))
-        remaining = len(features) - completed
+        completed = 0
+        remaining = 0
+        for f in features:
+            if f.get("completed"):
+                completed += 1
+            else:
+                remaining += 1
 
         emoji = data.get("emoji", "🚀")
         lines.append(f"### {emoji} {name}")
@@ -213,7 +219,7 @@ def process_project_portfolio(projects):
     return "\n".join(lines)
 
 
-def _extract_commits(events):
+def _extract_commits(events: List[Dict[str, Any]]) -> Union[List[str], str]:
     """Extract commits."""
     commits = []
     seen_commits = set()
@@ -236,7 +242,8 @@ def _extract_commits(events):
     return commits
 
 
-def _fetch_github_api(url):
+def _fetch_github_api(url: str) \
+        -> Union[List[Dict[str, Any]], Dict[str, Any], str]:
     """Fetch github API."""
     headers = {'User-Agent': 'Mozilla/5.0'}
     token = os.environ.get("GITHUB_TOKEN")
@@ -258,7 +265,7 @@ def _fetch_github_api(url):
 # 5. Fetch GitHub Commits
 
 
-def fetch_recent_commits():
+def fetch_recent_commits() -> str:
     """Fetch recent commits."""
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
     events = _fetch_github_api(url)
@@ -273,7 +280,7 @@ def fetch_recent_commits():
 # 6. Fetch Open Issues (Tasks)
 
 
-def fetch_open_tasks():
+def fetch_open_tasks() -> str:
     """Fetch open tasks."""
     url = "https://api.github.com/repos/mdbadrudduzaalif/mdbadrudduzaalif/issues?state=open"  # noqa: E501  # pylint: disable=line-too-long
     issues = _fetch_github_api(url)
@@ -295,7 +302,7 @@ def fetch_open_tasks():
     return "\n".join(tasks)
 
 
-def update_block(content, tag, new_value):
+def update_block(content: str, tag: str, new_value: str) -> str:
     """Update block."""
     start_tag = f"<!-- START_{tag} -->"
     end_tag = f"<!-- END_{tag} -->"
@@ -304,40 +311,9 @@ def update_block(content, tag, new_value):
     return re.sub(pattern, lambda m: replacement, content, flags=re.DOTALL)
 
 
-def build_agents_md(agents_data):
-    """Build agents markdown."""
-    agent_lines = []
-    for a in agents_data.get("agents", []):
-        emoji = "🟢" if a.get("status") == "Active" else "🟡"
-        agent_lines.append(
-            f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")  # noqa: E501
-    return "\n".join(agent_lines)
-
-
-def build_reflections_md(learning_log):
-    """Build reflections markdown."""
-    today_refl = learning_log.get("log", [])[:3]
-    completed_today_lines = []
-    for r in today_refl:
-        completed_today_lines.append(
-            f"- Logged study for {r.get('topic')} ({r.get('date')})")
-    return "**Completed Today**:\n" + "\n".join(completed_today_lines)
-
-
-def update_readme_file(blocks):
-    """Update README file with the provided blocks."""
-    with open(README_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    for tag, new_value in blocks.items():
-        content = update_block(content, tag, new_value)
-
-    with open(README_PATH, "w", encoding="utf-8") as f:
-        f.write(content)
-
-
-def main():
+def main() -> None:
     """Main function."""
+    # pylint: disable=too-many-locals
     if not os.environ.get("GITHUB_TOKEN"):
         print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
 
@@ -358,27 +334,52 @@ def main():
     projects = projects_data.get("projects", {})
     portfolio_md = process_project_portfolio(projects)
 
-    # Process Agent Lab & Reflections
-    agents_md = build_agents_md(agents_data)
-    reflections_md = build_reflections_md(learning_log)
+    # Process Agent Lab
+    agent_lines = []
+    for a in agents_data.get("agents", []):
+        emoji = "🟢" if a.get("status") == "Active" else "🟡"
+        agent_lines.append(
+            f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")  # noqa: E501
+    agents_md = "\n".join(agent_lines)
+
+    # Process reflections from dates studied
+    today_refl = learning_log.get("log", [])[:3]
+    completed_today_lines = []
+    for r in today_refl:
+        completed_today_lines.append(
+            f"- Logged study for {r.get('topic')} ({r.get('date')})")
+    reflections_md = "**Completed Today**:\n" + \
+        "\n".join(completed_today_lines)
 
     # API Fetches
     recent_commits = fetch_recent_commits()
     open_tasks = fetch_open_tasks()
 
-    # Update README
-    blocks = {
-        "PORTFOLIO": portfolio_md,
-        "STREAKS": streaks_md,
-        "LEARNING_PROGRESS": progress_md,
-        "LEARNING_PATH": path_md,
-        "COMMITS": recent_commits,
-        "TASKS": open_tasks,
-        "AGENTS": agents_md,
-        "REFLECTION": reflections_md
-    }
-    update_readme_file(blocks)
-    print("README updated successfully.")
+    # Read README
+    try:
+        with open(README_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        print(f"Error: {README_PATH} not found.")
+        return
+
+    # Replace content blocks
+    content = update_block(content, "PORTFOLIO", portfolio_md)
+    content = update_block(content, "STREAKS", streaks_md)
+    content = update_block(content, "LEARNING_PROGRESS", progress_md)
+    content = update_block(content, "LEARNING_PATH", path_md)
+    content = update_block(content, "COMMITS", recent_commits)
+    content = update_block(content, "TASKS", open_tasks)
+    content = update_block(content, "AGENTS", agents_md)
+    content = update_block(content, "REFLECTION", reflections_md)
+
+    # Write back
+    try:
+        with open(README_PATH, "w", encoding="utf-8") as f:
+            f.write(content)
+        print("README updated successfully.")
+    except IOError as e:
+        print(f"Error writing to {README_PATH}: {e}")
 
 
 if __name__ == "__main__":
