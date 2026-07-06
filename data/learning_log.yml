@@ -38,12 +38,12 @@ skills:
       - "Selection Sort"
       - "Insertion Sort"
       - "Merge Sort"
-    in_progress:
       - "Quick Sort"
-    planned:
       - "Recursion"
       - "Divide and Conquer"
+    in_progress:
       - "Greedy Algorithms"
+    planned:
       - "Activity Selection"
       - "Fractional Knapsack"
       - "Dynamic Programming"
@@ -58,6 +58,10 @@ skills:
       - "Prim"
 
 log:
+  - date: "2026-07-06"
+    topic: "Algorithms"
+  - date: "2026-07-01"
+    topic: "Algorithms"
   - date: "2026-06-29"
     topic: "Algorithms"
   - date: "2026-06-28"
