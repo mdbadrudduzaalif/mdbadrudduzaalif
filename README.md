@@ -49,7 +49,7 @@ Building two production-oriented software platforms:
       <h4>🔥 Streaks & Stats</h4>
 <!-- START_STREAKS -->
 **🔥 Active Study Streaks**
-- **Algorithms**: 🔥 1 day
+- **Algorithms**: 🔥 2 days
 - **C#**: ❄️ 0 days
 - **React Native**: ❄️ 0 days
 - **SQL**: ❄️ 0 days
@@ -67,7 +67,7 @@ Building two production-oriented software platforms:
 - **SQL**: `█████░░░░░ 57%`
 - **React Native**: `█░░░░░░░░░ 16%`
 - **C#**: `█░░░░░░░░░ 16%`
-- **Algorithms**: `████░░░░░░ 40%`
+- **Algorithms**: `████░░░░░░ 45%`
 <!-- END_LEARNING_PROGRESS -->
     </td>
   </tr>
@@ -111,8 +111,8 @@ Building two production-oriented software platforms:
 - ✅ Quick Sort
 - ✅ Recursion
 - ✅ Divide and Conquer
-- ⏳ Greedy Algorithms
-- ❌ Activity Selection
+- ✅ Greedy Algorithms
+- ⏳ Activity Selection
 - ❌ Fractional Knapsack
 - ❌ Dynamic Programming
 - ❌ Memoization
@@ -142,9 +142,9 @@ I am experimenting with specialized local AI agents to automate workflows and op
 ### 📅 Daily Reflection
 <!-- START_REFLECTION -->
 **Completed Today**:
+- Logged study for Algorithms (2026-07-07)
 - Logged study for Algorithms (2026-07-06)
 - Logged study for Algorithms (2026-07-01)
-- Logged study for Algorithms (2026-06-29)
 <!-- END_REFLECTION -->
 
 ---
