@@ -145,7 +145,8 @@ def render_streaks_md(streaks_stats):
 def render_progress_bar(completed, total, length=10):
     """Render progress bar."""
     if total == 0:
-        return "`░░░░░░░░░░ 0%`"
+        prog_bar = "░" * length
+        return f"`{prog_bar} 0%`"
     completed = min(completed, total)
     percentage = int(completed * 100 / total)
     filled_length = int(length * completed // total)
@@ -168,6 +169,8 @@ def process_learning_journey(skills):
     }
 
     for topic, sections in skills.items():
+        if not isinstance(sections, dict):
+            sections = {}
         completed = sections.get("completed", [])
         in_progress = sections.get("in_progress", [])
         planned = sections.get("planned", [])
@@ -196,13 +199,8 @@ def process_project_portfolio(projects):
     lines = []
     for name, data in projects.items():
         features = data.get("features", [])
-        completed = 0
-        remaining = 0
-        for f in features:
-            if f.get("completed"):
-                completed += 1
-            else:
-                remaining += 1
+        completed = sum(1 for f in features if f.get("completed"))
+        remaining = len(features) - completed
 
         emoji = data.get("emoji", "🚀")
         lines.append(f"### {emoji} {name}")
