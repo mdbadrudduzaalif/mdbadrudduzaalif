@@ -374,6 +374,7 @@ class TestUpdateReadme(unittest.TestCase):
     @patch('os.environ.get')
     def test_main(self, mock_env, mock_file, mock_fetch_tasks,
                   mock_fetch_commits, mock_load):
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Test main function."""
         mock_env.return_value = None
         mock_load.return_value = {
@@ -384,7 +385,6 @@ class TestUpdateReadme(unittest.TestCase):
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
 
-        # Provide different file contents on read to force a rewrite
         mock_read_data = (
             "<!-- START_PORTFOLIO --><!-- END_PORTFOLIO -->\n"
             "<!-- START_STREAKS --><!-- END_STREAKS -->\n"
@@ -397,29 +397,76 @@ class TestUpdateReadme(unittest.TestCase):
         )
         file_handles = [
             mock_open(read_data=mock_read_data).return_value,
-            mock_open(read_data="something old").return_value,
             mock_open().return_value
         ]
         mock_file.side_effect = file_handles
 
         main()
 
-        # Check that files were written
-        file_handles[2].write.assert_called()
+        file_handles[1].write.assert_called()
 
     @patch('update_readme.load_yaml')
-    @patch('update_readme._fetch_github_api')
-    @patch('builtins.open', new_callable=mock_open)
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open', side_effect=FileNotFoundError)
+    @patch('builtins.print')
     @patch('os.environ.get')
-    def test_main_no_change(self, mock_env, mock_file, mock_fetch, mock_load):
-        """Test main function no change."""
+    def test_main_no_readme(
+            self, mock_env, mock_print, mock_file,
+            mock_fetch_tasks, mock_fetch_commits, mock_load):
+        # noqa: E501  # pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
+        """Test main function when README.md is not found."""
+        import update_readme  # pylint: disable=import-outside-toplevel
         mock_env.return_value = None
         mock_load.return_value = {}
-        mock_fetch.return_value = []
+        mock_fetch_commits.return_value = []
+        mock_fetch_tasks.return_value = []
+
+        main()
+
+        readme_path = os.path.join(
+            os.path.dirname(os.path.abspath(update_readme.__file__)),
+            "README.md")
+        mock_print.assert_any_call(f"Error: Could not find {readme_path}")
+
+    @patch('update_readme.load_yaml')
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('os.environ.get')
+    def test_main_no_change(
+            self, mock_env, mock_file, mock_fetch_tasks,
+            mock_fetch_commits, mock_load):
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
+        """Test main function no change."""
+        mock_env.return_value = None
+        mock_load.return_value = {
+            "projects": {},
+            "skills": {},
+            "log": [],
+            "agents": []
+        }
+        mock_fetch_commits.return_value = "No recent public commits found."
+        mock_fetch_tasks.return_value = (
+            "*No active tasks from projects. "
+            "Create a GitHub Issue in this repository\n"
+            "to track your next task!*"
+        )
+
+        from update_readme import _generate_readme_content  # noqa: E501  # pylint: disable=import-outside-toplevel
+
+        data_bundle = {
+            'learning_log': mock_load.return_value,
+            'projects_data': mock_load.return_value,
+            'agents_data': mock_load.return_value,
+            'recent_commits': mock_fetch_commits.return_value,
+            'open_tasks': mock_fetch_tasks.return_value
+        }
+
+        expected_out = _generate_readme_content("", data_bundle)
 
         mock_file.side_effect = [
-            mock_open(read_data="some content").return_value,
-            mock_open(read_data="some content").return_value,
+            mock_open(read_data=expected_out).return_value
         ]
 
         main()
