@@ -1,6 +1,7 @@
 """Tests for update_readme.py."""
 import unittest
 import datetime
+import urllib.error
 import os
 from unittest.mock import patch, mock_open, MagicMock
 from update_readme import (
@@ -48,13 +49,13 @@ class TestUpdateReadme(unittest.TestCase):
         if "TZ_OFFSET_HOURS" in os.environ:
             del os.environ["TZ_OFFSET_HOURS"]
 
-    def test_calculate_current_streak_invalid_tz(self):
-        """Test with invalid tz string."""
-        os.environ["TZ_OFFSET_HOURS"] = "invalid"
+    @patch('os.environ.get')
+    def test_calculate_current_streak_invalid_tz(self, mock_env):
+        """Test calculating current streak with invalid tz."""
+        mock_env.return_value = "invalid"
         today = datetime.date.today()
         yesterday = today - datetime.timedelta(days=1)
         self.assertEqual(_calculate_current_streak({today, yesterday}), 2)
-        del os.environ["TZ_OFFSET_HOURS"]
 
     def test_longest_streak(self):
         """Test longest streak."""
@@ -279,6 +280,12 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(API Error: API rate limit)*")
 
+    @patch('urllib.request.urlopen', side_effect=urllib.error.HTTPError("http://test", 404, "Not Found", {}, None))
+    def test_fetch_github_api_http_error(self, mock_urlopen):
+        """Test fetch API HTTP error."""
+        res = _fetch_github_api("http://test")
+        self.assertEqual(res, "*(Failed API request: HTTP Error 404: Not Found)*")
+
     @patch('urllib.request.urlopen', side_effect=Exception("HTTP error"))
     def test_fetch_github_api_exception(self, mock_urlopen):
         """Test fetch API exception."""
@@ -359,6 +366,30 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertIn("new", new_content)
         self.assertNotIn("old", new_content)
 
+
+    @patch('update_readme.load_yaml')
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('os.environ.get')
+    def test_main_missing_readme(self, mock_env, mock_file, mock_fetch_tasks, mock_fetch_commits, mock_load):
+        """Test main missing readme."""
+        mock_env.return_value = None
+        mock_load.return_value = {}
+        mock_fetch_commits.return_value = ""
+        mock_fetch_tasks.return_value = ""
+
+        # Trigger FileNotFoundError on read, then a normal write handle
+        mock_open_inst = mock_open()
+        mock_file.side_effect = [FileNotFoundError(), mock_open_inst.return_value]
+
+        main()
+
+        # When FileNotFoundError is raised, old_content is "".
+        # Since the tags aren't in "", update_block returns "".
+        # So content == old_content, and write is not called.
+        mock_open_inst.return_value.write.assert_not_called()
+
     @patch('update_readme.load_yaml')
     @patch('update_readme.fetch_recent_commits')
     @patch('update_readme.fetch_open_tasks')
@@ -397,7 +428,6 @@ class TestUpdateReadme(unittest.TestCase):
         )
         file_handles = [
             mock_open(read_data=mock_read_data).return_value,
-            mock_open(read_data="something old").return_value,
             mock_open().return_value
         ]
         mock_file.side_effect = file_handles
@@ -405,7 +435,7 @@ class TestUpdateReadme(unittest.TestCase):
         main()
 
         # Check that files were written
-        file_handles[2].write.assert_called()
+        file_handles[1].write.assert_called()
 
     @patch('update_readme.load_yaml')
     @patch('update_readme._fetch_github_api')
@@ -418,7 +448,6 @@ class TestUpdateReadme(unittest.TestCase):
         mock_fetch.return_value = []
 
         mock_file.side_effect = [
-            mock_open(read_data="some content").return_value,
             mock_open(read_data="some content").return_value,
         ]
 
