@@ -42,10 +42,10 @@ skills:
       - "Recursion"
       - "Divide and Conquer"
       - "Greedy Algorithms"
-    in_progress:
       - "Activity Selection"
-    planned:
+    in_progress:
       - "Fractional Knapsack"
+    planned:
       - "Dynamic Programming"
       - "Memoization"
       - "0/1 Knapsack"
@@ -58,6 +58,8 @@ skills:
       - "Prim"
 
 log:
+  - date: "2026-07-09"
+    topic: "Algorithms"
   - date: "2026-07-07"
     topic: "Algorithms"
   - date: "2026-07-06"
