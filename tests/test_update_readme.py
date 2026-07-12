@@ -269,6 +269,21 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(res, {"key": "value"})
 
     @patch('urllib.request.urlopen')
+    def test_fetch_github_api_with_token(self, mock_urlopen):
+        """Test fetch API with token."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"key": "value"}'
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        os.environ["GITHUB_TOKEN"] = "test_token"
+        res = _fetch_github_api("http://test")
+        self.assertEqual(res, {"key": "value"})
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.headers.get('Authorization'), "token test_token")
+        del os.environ["GITHUB_TOKEN"]
+
+    @patch('urllib.request.urlopen')
     def test_fetch_github_api_error_response(self, mock_urlopen):
         """Test fetch API error dict."""
         mock_response = MagicMock()
@@ -300,6 +315,16 @@ class TestUpdateReadme(unittest.TestCase):
 
         res = _fetch_github_api("http://test")
         self.assertTrue(res.startswith("*(Failed to parse JSON"))
+
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_http_error(self, mock_urlopen):
+        """Test fetch API HTTP error."""
+        import urllib.error  # pylint: disable=import-outside-toplevel
+        # HTTPError needs specific arguments: url, code, msg, hdrs, fp
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "http://test", 404, "Not Found", {}, None)
+        res = _fetch_github_api("http://test")
+        self.assertTrue(res.startswith("*(Failed API request: HTTP Error 404: Not Found)*"))
 
     @patch('update_readme._fetch_github_api')
     def test_fetch_recent_commits(self, mock_fetch):
@@ -379,8 +404,11 @@ class TestUpdateReadme(unittest.TestCase):
         mock_load.return_value = {
             "projects": {},
             "skills": {},
-            "log": [],
-            "agents": []}
+            "log": [{"topic": "A", "date": "2023-01-01"}],
+            "agents": [
+                {"name": "Agent 1", "status": "Active", "purpose": "Test"},
+                {"name": "Agent 2", "status": "Inactive", "purpose": "Test"}
+            ]}
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
 
@@ -406,6 +434,56 @@ class TestUpdateReadme(unittest.TestCase):
 
         # Check that files were written
         file_handles[2].write.assert_called()
+
+    @patch('update_readme.load_yaml')
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open', new_callable=mock_open,
+           read_data="<!-- START_PORTFOLIO --><!-- END_PORTFOLIO -->\n"
+           "<!-- START_STREAKS --><!-- END_STREAKS -->\n"
+           "<!-- START_LEARNING_PROGRESS --><!-- END_LEARNING_PROGRESS -->\n"
+           "<!-- START_LEARNING_PATH --><!-- END_LEARNING_PATH -->\n"
+           "<!-- START_COMMITS --><!-- END_COMMITS -->\n"
+           "<!-- START_TASKS --><!-- END_TASKS -->\n"
+           "<!-- START_AGENTS --><!-- END_AGENTS -->\n"
+           "<!-- START_REFLECTION --><!-- END_REFLECTION -->")
+    @patch('os.environ.get')
+    def test_main_file_not_found(self, mock_env, mock_file, mock_fetch_tasks,
+                                 mock_fetch_commits, mock_load):
+        """Test main function with FileNotFoundError on read."""
+        mock_env.return_value = None
+        mock_load.return_value = {
+            "projects": {},
+            "skills": {},
+            "log": [],
+            "agents": []}
+        mock_fetch_commits.return_value = "commits"
+        mock_fetch_tasks.return_value = "tasks"
+
+        # First file open succeeds (reading the template),
+        # second file open (reading the old content to compare) fails.
+        # Third file open is for writing.
+        mock_read_data = (
+            "<!-- START_PORTFOLIO --><!-- END_PORTFOLIO -->\n"
+            "<!-- START_STREAKS --><!-- END_STREAKS -->\n"
+            "<!-- START_LEARNING_PROGRESS --><!-- END_LEARNING_PROGRESS -->\n"
+            "<!-- START_LEARNING_PATH --><!-- END_LEARNING_PATH -->\n"
+            "<!-- START_COMMITS --><!-- END_COMMITS -->\n"
+            "<!-- START_TASKS --><!-- END_TASKS -->\n"
+            "<!-- START_AGENTS --><!-- END_AGENTS -->\n"
+            "<!-- START_REFLECTION --><!-- END_REFLECTION -->"
+        )
+        mock_returns = [
+            mock_open(read_data=mock_read_data).return_value,
+            FileNotFoundError(),
+            mock_open().return_value
+        ]
+        mock_file.side_effect = mock_returns
+
+        main()
+
+        # The third handle should have write called since the target is new
+        mock_returns[2].write.assert_called()
 
     @patch('update_readme.load_yaml')
     @patch('update_readme._fetch_github_api')
