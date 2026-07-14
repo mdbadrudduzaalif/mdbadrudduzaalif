@@ -35,6 +35,8 @@ def _parse_log_dates(log_entries):
     """Parse log dates."""
     topic_dates = {}
     for entry in log_entries:
+        if not isinstance(entry, dict):
+            continue
         date_str = entry.get("date")
         topic = entry.get("topic")
         if date_str and topic:
@@ -68,11 +70,11 @@ def _calculate_longest_streak(sorted_dates):
 def _calculate_current_streak(dates_set):
     """Calculate current streak."""
     # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
-    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
+    # Expected format for TZ_OFFSET_HOURS is a float, e.g. "5.5"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
-            offset = int(tz_offset_hours)
+            offset = float(tz_offset_hours)
             tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
             today = datetime.datetime.now(tz_offset).date()
         except ValueError:
@@ -106,10 +108,6 @@ def calculate_streaks_stats(log_entries):
     stats = {}
 
     for topic, dates_set in topic_dates.items():
-        if not dates_set:
-            stats[topic] = {"current": 0, "longest": 0}
-            continue
-
         sorted_dates = sorted(dates_set)
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
@@ -171,9 +169,9 @@ def process_learning_journey(skills):
     for topic, sections in skills.items():
         if not isinstance(sections, dict):
             sections = {}
-        completed = sections.get("completed", [])
-        in_progress = sections.get("in_progress", [])
-        planned = sections.get("planned", [])
+        completed = sections.get("completed") or []
+        in_progress = sections.get("in_progress") or []
+        planned = sections.get("planned") or []
 
         total = len(completed) + len(in_progress) + len(planned)
         prog_bar = render_progress_bar(len(completed), total, length=10)
@@ -382,5 +380,5 @@ def main():
         print("README content is already up-to-date. No rewrite needed.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
