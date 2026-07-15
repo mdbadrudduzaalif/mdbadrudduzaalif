@@ -352,6 +352,96 @@ class TestUpdateReadme(unittest.TestCase):
         res = fetch_open_tasks()
         self.assertEqual(len(res.split('\n')), 5)
 
+    def test_calculate_streaks_stats_empty_dates(self):
+        """Test calculating stats with empty dates."""
+        with patch('update_readme._parse_log_dates') as mock_parse:
+            mock_parse.return_value = {"EmptyTopic": set()}
+            stats = calculate_streaks_stats(
+                [{"date": "2023-01-01", "topic": "EmptyTopic"}])
+            self.assertEqual(stats["EmptyTopic"]["longest"], 0)
+            self.assertEqual(stats["EmptyTopic"]["current"], 0)
+
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_with_token(self, mock_urlopen):
+        """Test fetch API with token."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"key": "value"}'
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        with patch.dict('os.environ', {'GITHUB_TOKEN': 'fake_token'}):
+            res = _fetch_github_api("http://test")
+            self.assertEqual(res, {"key": "value"})
+
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_http_error(self, mock_urlopen):
+        """Test fetch API http error."""
+        import urllib.error  # pylint: disable=import-outside-toplevel
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "http://test", 404, "Not Found", {}, None)
+        res = _fetch_github_api("http://test")
+        self.assertTrue(
+            res.startswith("*(Failed API request: HTTP Error 404: Not Found)*")
+        )
+
+    @patch('update_readme.load_yaml')
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open')
+    @patch('os.environ.get')
+    def test_main_file_not_found_on_read(
+            self, mock_env, mock_file, mock_fetch_tasks,
+            mock_fetch_commits, mock_load):
+        """Test main function when read fails."""
+        mock_env.return_value = None
+        mock_load.return_value = {
+            "projects": {},
+            "skills": {},
+            "log": [],
+            "agents": [{"name": "Agent1", "status": "Active",
+                        "purpose": "Testing"},
+                       {"name": "Agent2", "status": "Inactive",
+                        "purpose": "Testing"}]
+        }
+        mock_fetch_commits.return_value = "commits"
+        mock_fetch_tasks.return_value = "tasks"
+
+        mock_file.side_effect = [
+            mock_open(read_data="content").return_value,
+            FileNotFoundError(),
+            mock_open().return_value
+        ]
+
+        main()
+        self.assertEqual(mock_file.call_count, 3)
+
+    @patch('update_readme.load_yaml')
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('os.environ.get')
+    def test_main_today_refl(
+            self, mock_env, mock_file, mock_fetch_tasks,
+            mock_fetch_commits, mock_load):
+        """Test main function with today refl."""
+        mock_env.return_value = None
+        mock_load.return_value = {
+            "projects": {},
+            "skills": {},
+            "log": [{"topic": "Topic1", "date": "2023-01-01"}],
+            "agents": []
+        }
+        mock_fetch_commits.return_value = "commits"
+        mock_fetch_tasks.return_value = "tasks"
+
+        mock_file.side_effect = [
+            mock_open(read_data="content").return_value,
+            mock_open(read_data="content2").return_value,
+            mock_open().return_value
+        ]
+
+        main()
+
     def test_update_block(self):
         """Test update block."""
         content = "before\n<!-- START_TAG -->\nold\n<!-- END_TAG -->\nafter"
@@ -425,5 +515,5 @@ class TestUpdateReadme(unittest.TestCase):
         main()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()
