@@ -258,8 +258,10 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(len(commits), 5)
 
     @patch('urllib.request.urlopen')
-    def test_fetch_github_api_success(self, mock_urlopen):
+    @patch('os.environ.get')
+    def test_fetch_github_api_success(self, mock_env, mock_urlopen):
         """Test fetch API success."""
+        mock_env.return_value = "token"
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -289,6 +291,16 @@ class TestUpdateReadme(unittest.TestCase):
         mock_urlopen.side_effect = urllib.error.URLError("Error")
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
+
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_httperror(self, mock_urlopen):
+        """Test fetch API HTTPError."""
+        import urllib.error  # pylint: disable=import-outside-toplevel
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url="http://test", code=404, msg="Not Found", hdrs=None, fp=None)
+        res = _fetch_github_api("http://test")
+        self.assertEqual(
+            res, "*(Failed API request: HTTP Error 404: Not Found)*")
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_json_error(self, mock_urlopen):
@@ -375,12 +387,17 @@ class TestUpdateReadme(unittest.TestCase):
     def test_main(self, mock_env, mock_file, mock_fetch_tasks,
                   mock_fetch_commits, mock_load):
         """Test main function."""
-        mock_env.return_value = None
+        # Test with token existing
+        mock_env.side_effect = lambda k: (
+            "token" if k == "GITHUB_TOKEN" else None)
         mock_load.return_value = {
             "projects": {},
             "skills": {},
-            "log": [],
-            "agents": []}
+            "log": [{"topic": "A", "date": "2023-01-01"}],
+            "agents": [
+                {"name": "Agent A", "status": "Active", "purpose": "do A"},
+                {"name": "Agent B", "status": "Inactive", "purpose": "do B"}
+            ]}
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
 
@@ -408,6 +425,33 @@ class TestUpdateReadme(unittest.TestCase):
         file_handles[2].write.assert_called()
 
     @patch('update_readme.load_yaml')
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open')
+    @patch('os.environ.get')
+    def test_main_file_not_found_on_read(
+            self, mock_env, mock_file, mock_fetch_tasks,
+            mock_fetch_commits, mock_load):
+        """Test main function handling FileNotFoundError on reading."""
+        mock_env.return_value = None
+        mock_load.return_value = {}
+        mock_fetch_commits.return_value = "commits"
+        mock_fetch_tasks.return_value = "tasks"
+
+        # Create mocks that raise FileNotFoundError on second file open
+        mock_file1 = mock_open(read_data="some content").return_value
+        mock_file2 = MagicMock()
+        mock_file2.__enter__.side_effect = FileNotFoundError
+        mock_file3 = mock_open().return_value
+
+        mock_file.side_effect = [mock_file1, mock_file2, mock_file3]
+
+        main()
+
+        # Write shouldn't fail even if read file was not found
+        mock_file3.write.assert_called()
+
+    @patch('update_readme.load_yaml')
     @patch('update_readme._fetch_github_api')
     @patch('builtins.open', new_callable=mock_open)
     @patch('os.environ.get')
@@ -425,5 +469,5 @@ class TestUpdateReadme(unittest.TestCase):
         main()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()
