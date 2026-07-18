@@ -258,8 +258,10 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(len(commits), 5)
 
     @patch('urllib.request.urlopen')
-    def test_fetch_github_api_success(self, mock_urlopen):
+    @patch('os.environ.get')
+    def test_fetch_github_api_success(self, mock_env, mock_urlopen):
         """Test fetch API success."""
+        mock_env.return_value = "fake_token"
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -289,6 +291,15 @@ class TestUpdateReadme(unittest.TestCase):
         mock_urlopen.side_effect = urllib.error.URLError("Error")
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
+
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_http_error(self, mock_urlopen):
+        """Test fetch API HTTP error."""
+        import urllib.error  # pylint: disable=import-outside-toplevel
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "http://test", 403, "Forbidden", {}, None)
+        res = _fetch_github_api("http://test")
+        self.assertTrue(res.startswith("*(Failed API request: HTTP Error 403: Forbidden)*"))
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_json_error(self, mock_urlopen):
@@ -375,12 +386,20 @@ class TestUpdateReadme(unittest.TestCase):
     def test_main(self, mock_env, mock_file, mock_fetch_tasks,
                   mock_fetch_commits, mock_load):
         """Test main function."""
-        mock_env.return_value = None
+        mock_env.return_value = "fake_token"
         mock_load.return_value = {
             "projects": {},
             "skills": {},
-            "log": [],
-            "agents": []}
+            "log": [
+                {"topic": "A", "date": "2023-01-01"},
+                {"topic": "B", "date": "2023-01-02"},
+                {"topic": "C", "date": "2023-01-03"},
+                {"topic": "D", "date": "2023-01-04"}
+            ],
+            "agents": [
+                {"name": "Agent1", "status": "Active", "purpose": "Test"},
+                {"name": "Agent2", "status": "Idle", "purpose": "Test2"}
+            ]}
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
 
@@ -397,7 +416,6 @@ class TestUpdateReadme(unittest.TestCase):
         )
         file_handles = [
             mock_open(read_data=mock_read_data).return_value,
-            mock_open(read_data="something old").return_value,
             mock_open().return_value
         ]
         mock_file.side_effect = file_handles
@@ -405,7 +423,7 @@ class TestUpdateReadme(unittest.TestCase):
         main()
 
         # Check that files were written
-        file_handles[2].write.assert_called()
+        file_handles[1].write.assert_called()
 
     @patch('update_readme.load_yaml')
     @patch('update_readme._fetch_github_api')
@@ -418,8 +436,7 @@ class TestUpdateReadme(unittest.TestCase):
         mock_fetch.return_value = []
 
         mock_file.side_effect = [
-            mock_open(read_data="some content").return_value,
-            mock_open(read_data="some content").return_value,
+            FileNotFoundError(),
         ]
 
         main()
