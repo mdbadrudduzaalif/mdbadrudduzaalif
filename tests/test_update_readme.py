@@ -184,6 +184,14 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(len(dates), 2)
         self.assertIn(datetime.date(2023, 1, 1), dates["A"])
 
+    @patch('update_readme._parse_log_dates')
+    def test_calculate_streaks_stats_empty(self, mock_parse):
+        """Test calculating stats with empty dates set."""
+        mock_parse.return_value = {"A": set()}
+        stats = calculate_streaks_stats([])
+        self.assertEqual(stats["A"]["longest"], 0)
+        self.assertEqual(stats["A"]["current"], 0)
+
     def test_calculate_streaks_stats(self):
         """Test calculating stats."""
         entries = [{"date": "2023-01-01", "topic": "A"}]
@@ -257,6 +265,18 @@ class TestUpdateReadme(unittest.TestCase):
         commits = _extract_commits(events)
         self.assertEqual(len(commits), 5)
 
+    @patch('os.environ.get')
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_with_token(self, mock_urlopen, mock_env):
+        """Test fetch API with token."""
+        mock_env.return_value = "fake_token"
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"key": "value"}'
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+        res = _fetch_github_api("http://test")
+        self.assertEqual(res, {"key": "value"})
+
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_success(self, mock_urlopen):
         """Test fetch API success."""
@@ -279,12 +299,23 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(API Error: API rate limit)*")
 
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_httperror(self, mock_urlopen):
+        """Test fetch API HTTPError."""
+        # pylint: disable=import-outside-toplevel
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "http://test", 404, "Not Found", {}, None)
+        res = _fetch_github_api("http://test")
+        self.assertTrue(res.startswith("*(Failed API request:"))
+
     @patch('urllib.request.urlopen', side_effect=Exception("HTTP error"))
     def test_fetch_github_api_exception(self, mock_urlopen):
         """Test fetch API exception."""
         # Using a generic exception since urllib is complex to mock here
         # Actually _fetch_github_api catches urllib.error.URLError, so let's
         # mock that
+        # pylint: disable=import-outside-toplevel
         import urllib.error  # pylint: disable=import-outside-toplevel
         mock_urlopen.side_effect = urllib.error.URLError("Error")
         res = _fetch_github_api("http://test")
@@ -379,8 +410,11 @@ class TestUpdateReadme(unittest.TestCase):
         mock_load.return_value = {
             "projects": {},
             "skills": {},
-            "log": [],
-            "agents": []}
+            "log": [{"date": "2023-01-01", "topic": "A"}],
+            "agents": [{"name": "Agent1", "status": "Active",
+                        "purpose": "Testing"},
+                       {"name": "Agent2", "status": "Idle",
+                        "purpose": "Testing"}]}
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
 
@@ -397,7 +431,7 @@ class TestUpdateReadme(unittest.TestCase):
         )
         file_handles = [
             mock_open(read_data=mock_read_data).return_value,
-            mock_open(read_data="something old").return_value,
+            FileNotFoundError(),
             mock_open().return_value
         ]
         mock_file.side_effect = file_handles
@@ -425,5 +459,5 @@ class TestUpdateReadme(unittest.TestCase):
         main()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     unittest.main()
