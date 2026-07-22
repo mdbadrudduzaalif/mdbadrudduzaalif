@@ -106,10 +106,6 @@ def calculate_streaks_stats(log_entries):
     stats = {}
 
     for topic, dates_set in topic_dates.items():
-        if not dates_set:
-            stats[topic] = {"current": 0, "longest": 0}
-            continue
-
         sorted_dates = sorted(dates_set)
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
@@ -382,5 +378,5 @@ def main():
         print("README content is already up-to-date. No rewrite needed.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
