@@ -186,10 +186,16 @@ class TestUpdateReadme(unittest.TestCase):
 
     def test_calculate_streaks_stats(self):
         """Test calculating stats."""
-        entries = [{"date": "2023-01-01", "topic": "A"}]
+        entries = [
+            {"date": "2023-01-01", "topic": "A"},
+            {"date": "invalid-date", "topic": "B"}
+        ]
         stats = calculate_streaks_stats(entries)
         self.assertEqual(stats["A"]["longest"], 1)
         self.assertEqual(stats["A"]["current"], 0)
+        self.assertIn("B", stats)
+        self.assertEqual(stats["B"]["longest"], 0)
+        self.assertEqual(stats["B"]["current"], 0)
 
     def test_render_streaks_md(self):
         """Test rendering streaks."""
@@ -279,6 +285,18 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(API Error: API rate limit)*")
 
+    @patch('urllib.request.urlopen')
+    @patch('os.environ.get')
+    def test_fetch_github_api_success_with_token(self, mock_env, mock_urlopen):
+        """Test fetch API with token."""
+        mock_env.return_value = "fake-token"
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"success": true}'
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+        res = _fetch_github_api("http://test")
+        self.assertEqual(res, {"success": True})
+
     @patch('urllib.request.urlopen', side_effect=Exception("HTTP error"))
     def test_fetch_github_api_exception(self, mock_urlopen):
         """Test fetch API exception."""
@@ -289,6 +307,14 @@ class TestUpdateReadme(unittest.TestCase):
         mock_urlopen.side_effect = urllib.error.URLError("Error")
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
+
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_http_error(self, mock_urlopen):
+        """Test fetch API HTTPError."""
+        import urllib.error  # pylint: disable=import-outside-toplevel
+        mock_urlopen.side_effect = urllib.error.HTTPError("http://test", 404, "Not Found", {}, None)
+        res = _fetch_github_api("http://test")
+        self.assertEqual(res, "*(Failed API request: HTTP Error 404: Not Found)*")
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_json_error(self, mock_urlopen):
@@ -379,8 +405,9 @@ class TestUpdateReadme(unittest.TestCase):
         mock_load.return_value = {
             "projects": {},
             "skills": {},
-            "log": [],
-            "agents": []}
+            "log": [{"topic": "A", "date": "2023-10-01"}],
+            "agents": [{"name": "Agent1", "status": "Active", "purpose": "Test"},
+                       {"name": "Agent2", "status": "Inactive", "purpose": "Test2"}]}
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
 
@@ -417,13 +444,52 @@ class TestUpdateReadme(unittest.TestCase):
         mock_load.return_value = {}
         mock_fetch.return_value = []
 
-        mock_file.side_effect = [
-            mock_open(read_data="some content").return_value,
-            mock_open(read_data="some content").return_value,
-        ]
+        # Mock file handling logic precisely to throw FileNotFoundError on the second open call
+        # the first call is read README, the second is read old_content
+        mock_file_instance = mock_open(read_data="some content").return_value
+
+        def open_side_effect(*args, **kwargs):
+            if open_side_effect.call_count == 1:
+                open_side_effect.call_count += 1
+                raise FileNotFoundError()
+            open_side_effect.call_count += 1
+            return mock_file_instance
+
+        open_side_effect.call_count = 0
+        mock_file.side_effect = open_side_effect
 
         main()
 
+    @patch('update_readme.load_yaml')
+    @patch('update_readme._fetch_github_api')
+    @patch('builtins.open')
+    @patch('os.environ.get')
+    def test_main_no_change_real(self, mock_env, mock_file, mock_fetch, mock_load):
+        """Test main function really no change to trigger branch."""
+        mock_env.return_value = None
+        mock_load.return_value = {}
+        mock_fetch.return_value = []
+
+        # we need content == old_content
+        # Let's mock a specific content that wouldn't change
+        from update_readme import update_block
+        test_content = (
+            "<!-- START_PORTFOLIO -->\n\n<!-- END_PORTFOLIO -->\n"
+            "<!-- START_STREAKS -->\nNo active streaks.\n<!-- END_STREAKS -->\n"
+            "<!-- START_LEARNING_PROGRESS -->\n\n<!-- END_LEARNING_PROGRESS -->\n"
+            "<!-- START_LEARNING_PATH -->\n\n<!-- END_LEARNING_PATH -->\n"
+            "<!-- START_COMMITS -->\nNo recent public commits found.\n<!-- END_COMMITS -->\n"
+            "<!-- START_TASKS -->\n*No active tasks from projects. Create a GitHub Issue in this repository to track your next task!*\n<!-- END_TASKS -->\n"
+            "<!-- START_AGENTS -->\n\n<!-- END_AGENTS -->\n"
+            "<!-- START_REFLECTION -->\n**Completed Today**:\n\n<!-- END_REFLECTION -->"
+        )
+
+        mock_file.side_effect = [
+            mock_open(read_data=test_content).return_value,
+            mock_open(read_data=test_content).return_value,
+        ]
+
+        main()
 
 if __name__ == "__main__":
     unittest.main()
