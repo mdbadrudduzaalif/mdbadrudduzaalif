@@ -48,6 +48,28 @@ class TestUpdateReadme(unittest.TestCase):
         if "TZ_OFFSET_HOURS" in os.environ:
             del os.environ["TZ_OFFSET_HOURS"]
 
+    def test_calculate_current_streak_float_offset(self):
+        """Test streak head with float offset."""
+        os.environ["TZ_OFFSET_HOURS"] = "5.5"
+        tz_offset = datetime.timezone(datetime.timedelta(hours=5.5))
+        today = datetime.datetime.now(tz_offset).date()
+        yesterday = today - datetime.timedelta(days=1)
+        two_days_ago = today - datetime.timedelta(days=2)
+        three_days_ago = today - datetime.timedelta(days=3)
+
+        self.assertEqual(_calculate_current_streak(set()), 0)
+        self.assertEqual(_calculate_current_streak({two_days_ago}), 0)
+        self.assertEqual(_calculate_current_streak({yesterday}), 1)
+        self.assertEqual(_calculate_current_streak({today}), 1)
+        self.assertEqual(_calculate_current_streak({yesterday, today}), 2)
+        self.assertEqual(
+            _calculate_current_streak({two_days_ago, yesterday}), 2)
+        self.assertEqual(_calculate_current_streak(
+            {three_days_ago, two_days_ago, yesterday, today}), 4)
+
+        if "TZ_OFFSET_HOURS" in os.environ:
+            del os.environ["TZ_OFFSET_HOURS"]
+
     def test_calculate_current_streak_invalid_tz(self):
         """Test with invalid tz string."""
         os.environ["TZ_OFFSET_HOURS"] = "invalid"
