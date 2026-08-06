@@ -67,7 +67,7 @@ Building two production-oriented software platforms:
 - **SQL**: `█████░░░░░ 57%`
 - **React Native**: `█░░░░░░░░░ 16%`
 - **C#**: `█░░░░░░░░░ 16%`
-- **Algorithms**: `██████░░░░ 63%`
+- **Algorithms**: `███████░░░ 72%`
 <!-- END_LEARNING_PROGRESS -->
     </td>
   </tr>
@@ -116,9 +116,9 @@ Building two production-oriented software platforms:
 - ✅ Fractional Knapsack
 - ✅ Dynamic Programming
 - ✅ Memoization
-- ⏳ 0/1 Knapsack
-- ❌ Longest Common Subsequence (LCS)
-- ❌ BFS
+- ✅ 0/1 Knapsack
+- ✅ Longest Common Subsequence (LCS)
+- ⏳ BFS
 - ❌ DFS
 - ❌ Connected Components
 - ❌ Dijkstra
