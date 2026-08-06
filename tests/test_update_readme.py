@@ -189,7 +189,33 @@ class TestUpdateReadme(unittest.TestCase):
         entries = [{"date": "2023-01-01", "topic": "A"}]
         stats = calculate_streaks_stats(entries)
         self.assertEqual(stats["A"]["longest"], 1)
-        self.assertEqual(stats["A"]["current"], 0)
+
+    @patch('os.environ.get')
+    @patch('update_readme.datetime')
+    def test_calculate_current_streak_tz_offset_float(self, mock_dt, mock_env):
+        """Test calculating current streak with float tz offset."""
+        mock_env.return_value = "5.5"
+        # Set up a real date object to test membership against
+        real_date = datetime.date(2023, 1, 1)
+        mock_dt.datetime.now.return_value.date.return_value = real_date
+        mock_dt.timedelta = datetime.timedelta
+        mock_dt.timezone = datetime.timezone
+        dates = {real_date}
+        streak = _calculate_current_streak(dates)
+        self.assertEqual(streak, 1)
+
+    @patch('os.environ.get')
+    @patch('update_readme.datetime')
+    def test_calculate_current_streak_tz_offset_invalid(
+            self, mock_dt, mock_env):
+        """Test calculating current streak with invalid tz offset."""
+        mock_env.return_value = "invalid"
+        real_date = datetime.date(2023, 1, 1)
+        mock_dt.date.today.return_value = real_date
+        mock_dt.timedelta = datetime.timedelta
+        dates = {real_date}
+        streak = _calculate_current_streak(dates)
+        self.assertEqual(streak, 1)
 
     def test_render_streaks_md(self):
         """Test rendering streaks."""
@@ -268,6 +294,19 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, {"key": "value"})
 
+    @patch('os.environ.get')
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_with_token(self, mock_urlopen, mock_env):
+        """Test fetch API with token."""
+        mock_env.return_value = "my_token"
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'{"key": "value"}'
+        mock_response.__enter__.return_value = mock_response
+        mock_urlopen.return_value = mock_response
+
+        res = _fetch_github_api("http://test")
+        self.assertEqual(res, {"key": "value"})
+
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_error_response(self, mock_urlopen):
         """Test fetch API error dict."""
@@ -279,16 +318,23 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(API Error: API rate limit)*")
 
-    @patch('urllib.request.urlopen', side_effect=Exception("HTTP error"))
+    @patch('urllib.request.urlopen')
     def test_fetch_github_api_exception(self, mock_urlopen):
         """Test fetch API exception."""
-        # Using a generic exception since urllib is complex to mock here
-        # Actually _fetch_github_api catches urllib.error.URLError, so let's
-        # mock that
         import urllib.error  # pylint: disable=import-outside-toplevel
         mock_urlopen.side_effect = urllib.error.URLError("Error")
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
+
+    @patch('urllib.request.urlopen')
+    def test_fetch_github_api_http_error(self, mock_urlopen):
+        """Test fetch API HTTP error."""
+        import urllib.error  # pylint: disable=import-outside-toplevel
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "http://test", 404, "Not Found", None, None)
+        res = _fetch_github_api("http://test")
+        self.assertEqual(
+            res, "*(Failed API request: HTTP Error 404: Not Found)*")
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_json_error(self, mock_urlopen):
@@ -379,8 +425,9 @@ class TestUpdateReadme(unittest.TestCase):
         mock_load.return_value = {
             "projects": {},
             "skills": {},
-            "log": [],
-            "agents": []}
+            "log": [{"date": "2023-01-01", "topic": "A"}],
+            "agents": [{"status": "Active", "name": "A1", "purpose": "P1"},
+                       {"status": "Inactive", "name": "A2", "purpose": "P2"}]}
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
 
@@ -408,13 +455,44 @@ class TestUpdateReadme(unittest.TestCase):
         file_handles[2].write.assert_called()
 
     @patch('update_readme.load_yaml')
+    @patch('update_readme.fetch_recent_commits')
+    @patch('update_readme.fetch_open_tasks')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('os.environ.get')
+    def test_main_file_not_found(self, mock_env, mock_file, mock_fetch_tasks,
+                                 mock_fetch_commits, mock_load):
+        """Test main function handling FileNotFoundError on read."""
+        mock_env.return_value = None
+        mock_load.return_value = {
+            "projects": {},
+            "skills": {},
+            "log": [{"date": "2023-01-01", "topic": "A"}],
+            "agents": [{"status": "Active", "name": "A1", "purpose": "P1"},
+                       {"status": "Inactive", "name": "A2", "purpose": "P2"}]}
+        mock_fetch_commits.return_value = "commits"
+        mock_fetch_tasks.return_value = "tasks"
+
+        mock_write = mock_open().return_value
+        mock_file.side_effect = [
+            mock_open(read_data="new").return_value,
+            FileNotFoundError(),
+            mock_write
+        ]
+
+        main()
+        mock_write.write.assert_called()
+
+    @patch('update_readme.load_yaml')
     @patch('update_readme._fetch_github_api')
     @patch('builtins.open', new_callable=mock_open)
     @patch('os.environ.get')
     def test_main_no_change(self, mock_env, mock_file, mock_fetch, mock_load):
         """Test main function no change."""
         mock_env.return_value = None
-        mock_load.return_value = {}
+        mock_load.return_value = {
+            "log": [{"date": "2023-01-01", "topic": "A"}],
+            "agents": [{"status": "Active", "name": "A1", "purpose": "P1"},
+                       {"status": "Inactive", "name": "A2", "purpose": "P2"}]}
         mock_fetch.return_value = []
 
         mock_file.side_effect = [

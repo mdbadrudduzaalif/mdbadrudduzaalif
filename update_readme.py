@@ -68,11 +68,11 @@ def _calculate_longest_streak(sorted_dates):
 def _calculate_current_streak(dates_set):
     """Calculate current streak."""
     # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
-    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
+    # Expected format for TZ_OFFSET_HOURS is a float, e.g. "5.5"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
-            offset = int(tz_offset_hours)
+            offset = float(tz_offset_hours)
             tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
             today = datetime.datetime.now(tz_offset).date()
         except ValueError:
@@ -106,10 +106,6 @@ def calculate_streaks_stats(log_entries):
     stats = {}
 
     for topic, dates_set in topic_dates.items():
-        if not dates_set:
-            stats[topic] = {"current": 0, "longest": 0}
-            continue
-
         sorted_dates = sorted(dates_set)
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
@@ -241,7 +237,7 @@ def _extract_commits(events):
 
 def _fetch_github_api(url):
     """Fetch github API."""
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'mdbadrudduzaalif-profile-readme-updater'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
@@ -382,5 +378,5 @@ def main():
         print("README content is already up-to-date. No rewrite needed.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
