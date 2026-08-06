@@ -46,11 +46,11 @@ skills:
       - "Fractional Knapsack"
       - "Dynamic Programming"
       - "Memoization"
-    in_progress:
       - "0/1 Knapsack"
-    planned:
       - "Longest Common Subsequence (LCS)"
+    in_progress:
       - "BFS"
+    planned:
       - "DFS"
       - "Connected Components"
       - "Dijkstra"
