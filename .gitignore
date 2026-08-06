@@ -1,4 +1,7 @@
 __pycache__/
 *.py[cod]
 .coverage
+<<<<<<< HEAD
 htmlcov/
+=======
+>>>>>>> origin/main
