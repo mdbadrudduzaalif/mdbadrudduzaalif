@@ -43,14 +43,14 @@ skills:
       - "Divide and Conquer"
       - "Greedy Algorithms"
       - "Activity Selection"
+    in_progress:
       - "Fractional Knapsack"
+    planned:
       - "Dynamic Programming"
       - "Memoization"
       - "0/1 Knapsack"
       - "Longest Common Subsequence (LCS)"
-    in_progress:
       - "BFS"
-    planned:
       - "DFS"
       - "Connected Components"
       - "Dijkstra"
@@ -58,8 +58,6 @@ skills:
       - "Prim"
 
 log:
-  - date: "2026-08-06"
-    topic: "Algorithms"
   - date: "2026-07-09"
     topic: "Algorithms"
   - date: "2026-07-07"
