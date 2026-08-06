@@ -15,6 +15,13 @@ LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
 PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
 
+CATEGORY_ICONS = {
+    "SQL": "🗄️ Database Development (SQL)",
+    "React Native": "📱 Mobile Development (React Native)",
+    "C#": "💻 C# Development (C#)",
+    "Algorithms": "🧠 Algorithms & Data Structures (C++)"
+}
+
 
 def load_yaml(path):
     """Load YAML file safely."""
@@ -106,10 +113,6 @@ def calculate_streaks_stats(log_entries):
     stats = {}
 
     for topic, dates_set in topic_dates.items():
-        if not dates_set:
-            stats[topic] = {"current": 0, "longest": 0}
-            continue
-
         sorted_dates = sorted(dates_set)
         longest = _calculate_longest_streak(sorted_dates)
         current = _calculate_current_streak(dates_set)
@@ -161,13 +164,6 @@ def process_learning_journey(skills):
     progress_lines = []
     path_lines = []
 
-    category_icons = {
-        "SQL": "🗄️ Database Development (SQL)",
-        "React Native": "📱 Mobile Development (React Native)",
-        "C#": "💻 C# Development (C#)",
-        "Algorithms": "🧠 Algorithms & Data Structures (C++)"
-    }
-
     for topic, sections in skills.items():
         if not isinstance(sections, dict):
             sections = {}
@@ -179,7 +175,7 @@ def process_learning_journey(skills):
         prog_bar = render_progress_bar(len(completed), total, length=10)
         progress_lines.append(f"- **{topic}**: {prog_bar}")
 
-        topic_header = category_icons.get(topic, f"🛠️ {topic}")
+        topic_header = CATEGORY_ICONS.get(topic, f"🛠️ {topic}")
         path_lines.append(f"\n#### {topic_header}")
 
         for item in completed:
@@ -255,9 +251,7 @@ def _fetch_github_api(url):
             return data
     except json.JSONDecodeError as e:
         return f"*(Failed to parse JSON: {str(e)})*"
-    except urllib.error.HTTPError as e:
-        return f"*(Failed API request: {str(e)})*"
-    except urllib.error.URLError as e:
+    except (urllib.error.HTTPError, urllib.error.URLError) as e:
         return f"*(Failed API request: {str(e)})*"
 
 # 5. Fetch GitHub Commits

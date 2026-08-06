@@ -258,8 +258,10 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(len(commits), 5)
 
     @patch('urllib.request.urlopen')
-    def test_fetch_github_api_success(self, mock_urlopen):
+    @patch('os.environ.get')
+    def test_fetch_github_api_success(self, mock_env, mock_urlopen):
         """Test fetch API success."""
+        mock_env.return_value = "fake_token"
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -267,6 +269,12 @@ class TestUpdateReadme(unittest.TestCase):
 
         res = _fetch_github_api("http://test")
         self.assertEqual(res, {"key": "value"})
+
+        # Verify header is added
+        call_args = mock_urlopen.call_args[0][0]
+        self.assertIn("Authorization", call_args.headers)
+        self.assertEqual(
+            call_args.headers["Authorization"], "token fake_token")
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_error_response(self, mock_urlopen):
@@ -279,7 +287,7 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(API Error: API rate limit)*")
 
-    @patch('urllib.request.urlopen', side_effect=Exception("HTTP error"))
+    @patch('urllib.request.urlopen')
     def test_fetch_github_api_exception(self, mock_urlopen):
         """Test fetch API exception."""
         # Using a generic exception since urllib is complex to mock here
@@ -289,6 +297,13 @@ class TestUpdateReadme(unittest.TestCase):
         mock_urlopen.side_effect = urllib.error.URLError("Error")
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
+
+        # Test HTTPError
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "http://test", 404, "Not Found", {}, None)
+        res_http = _fetch_github_api("http://test")
+        self.assertEqual(
+            res_http, "*(Failed API request: HTTP Error 404: Not Found)*")
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_json_error(self, mock_urlopen):
@@ -423,6 +438,39 @@ class TestUpdateReadme(unittest.TestCase):
         ]
 
         main()
+
+    @patch('update_readme.load_yaml')
+    @patch('update_readme._fetch_github_api')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('os.environ.get')
+    def test_main_agents_and_reflections(self, mock_env, mock_file,
+                                         mock_fetch, mock_load):
+        """Test main function with agents and reflections."""
+        mock_env.return_value = None
+        mock_load.return_value = {
+            "agents": [
+                {"name": "A", "status": "Active", "purpose": "T"},
+                {"name": "I", "status": "Inactive", "purpose": "S"}
+            ],
+            "log": [
+                {"topic": "Python", "date": "2023-01-01"},
+                {"topic": "Go", "date": "2023-01-02"},
+                {"topic": "C++", "date": "2023-01-03"},
+                {"topic": "Rust", "date": "2023-01-04"}  # 4th ignored
+            ]
+        }
+        mock_fetch.return_value = []
+
+        mock_file.side_effect = [
+            mock_open(read_data="").return_value,
+            FileNotFoundError(),
+            mock_open().return_value
+        ]
+
+        main()
+
+        # Verify write was called
+        self.assertTrue(mock_file.call_args_list[-1][0])
 
 
 if __name__ == "__main__":
