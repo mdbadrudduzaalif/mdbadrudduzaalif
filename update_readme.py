@@ -97,11 +97,11 @@ def calculate_streaks_stats(
     stats = {}
 
     # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
-    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
+    # Expected format for TZ_OFFSET_HOURS is a float, e.g. "6", "5.5"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
-            offset = int(tz_offset_hours)
+            offset = float(tz_offset_hours)
             tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
             today = datetime.datetime.now(tz_offset).date()
         except ValueError:
@@ -247,7 +247,7 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
 
 def _fetch_github_api(url: str) -> Union[str, Any]:
     """Fetch github API."""
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'mdbadrudduzaalif-profile-readme-updater'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
