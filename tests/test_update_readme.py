@@ -164,21 +164,21 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(data, {"key": "value"})
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch('logging.warning')
+    def test_load_yaml_not_found(self, mock_logging, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_logging.assert_called_with(
+            "File not found at %s", "nonexistent.yml")
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('logging.warning')
+    def test_load_yaml_error(self, mock_logging, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_logging.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
@@ -192,8 +192,19 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(len(dates), 2)
         self.assertIn(datetime.date(2023, 1, 1), dates["A"])
 
-    def test_calculate_streaks_stats(self):
-        """Test calculating stats."""
+    @patch('os.environ.get')
+    def test_calculate_streaks_stats(self, mock_env):
+        """Test calculating stats with valid float TZ offset."""
+        mock_env.return_value = "5.5"
+        entries = [{"date": "2023-01-01", "topic": "A"}]
+        stats = calculate_streaks_stats(entries)
+        self.assertEqual(stats["A"]["longest"], 1)
+        self.assertEqual(stats["A"]["current"], 0)
+
+    @patch('os.environ.get')
+    def test_calculate_streaks_stats_invalid_tz(self, mock_env):
+        """Test calculating stats with invalid TZ offset."""
+        mock_env.return_value = "invalid"
         entries = [{"date": "2023-01-01", "topic": "A"}]
         stats = calculate_streaks_stats(entries)
         self.assertEqual(stats["A"]["longest"], 1)
