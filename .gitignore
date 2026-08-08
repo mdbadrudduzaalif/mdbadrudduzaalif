@@ -1,2 +1,7 @@
 __pycache__/
 *.py[cod]
+
+# Testing and build artifacts
+.coverage
+htmlcov/
+.pytest_cache/
