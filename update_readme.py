@@ -1,6 +1,7 @@
 """Module to update README.md with learning streaks and project info."""
 import datetime
 import json
+import logging
 import os
 import re
 import urllib.request
@@ -8,6 +9,10 @@ import urllib.error
 from typing import Any, Dict, List, Set, Tuple, Union
 
 import yaml
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,10 +28,10 @@ def load_yaml(path: str) -> Dict[str, Any]:
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except FileNotFoundError:
-        print(f"Warning: File not found at {path}")
+        logger.warning("File not found at %s", path)
         return {}
     except yaml.YAMLError as e:
-        print(f"Warning: Error parsing YAML file at {path}: {e}")
+        logger.warning("Error parsing YAML file at %s: %s", path, e)
         return {}
 
 # 1. Streak & Longest Streak Calculation
@@ -41,8 +46,7 @@ def _parse_log_dates(
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
@@ -97,11 +101,11 @@ def calculate_streaks_stats(
     stats = {}
 
     # Try to get timezone offset from environment, default to local system time if not set  # noqa: E501  # pylint: disable=line-too-long
-    # Expected format for TZ_OFFSET_HOURS is an integer, e.g. "6"
+    # Expected format for TZ_OFFSET_HOURS is a float, e.g. "5.5"
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
-            offset = int(tz_offset_hours)
+            offset = float(tz_offset_hours)
             tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
             today = datetime.datetime.now(tz_offset).date()
         except ValueError:
@@ -247,7 +251,7 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
 
 def _fetch_github_api(url: str) -> Union[str, Any]:
     """Fetch github API."""
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'mdbadrudduzaalif-profile-readme-updater'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
@@ -325,7 +329,7 @@ def main() -> None:
     """Main function."""
     # pylint: disable=too-many-locals
     if not os.environ.get("GITHUB_TOKEN"):
-        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
+        logger.warning("GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
 
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
@@ -394,9 +398,9 @@ def main() -> None:
     if content != old_content:
         with open(README_PATH, "w", encoding="utf-8") as f:
             f.write(content)
-        print("README updated successfully.")
+        logger.info("README updated successfully.")
     else:
-        print("README content is already up-to-date. No rewrite needed.")
+        logger.info("README content is already up-to-date. No rewrite needed.")
 
 
 if __name__ == "__main__":  # pragma: no cover
