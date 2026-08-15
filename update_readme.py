@@ -41,8 +41,7 @@ def _parse_log_dates(
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
@@ -101,7 +100,7 @@ def calculate_streaks_stats(
     tz_offset_hours = os.environ.get("TZ_OFFSET_HOURS")
     if tz_offset_hours is not None:
         try:
-            offset = int(tz_offset_hours)
+            offset = float(tz_offset_hours)
             tz_offset = datetime.timezone(datetime.timedelta(hours=offset))
             today = datetime.datetime.now(tz_offset).date()
         except ValueError:
