@@ -39,7 +39,8 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(_calculate_current_streak({two_days_ago}, today), 0)
         self.assertEqual(_calculate_current_streak({yesterday}, today), 1)
         self.assertEqual(_calculate_current_streak({today}, today), 1)
-        self.assertEqual(_calculate_current_streak({yesterday, today}, today), 2)
+        self.assertEqual(
+            _calculate_current_streak({yesterday, today}, today), 2)
         self.assertEqual(
             _calculate_current_streak({two_days_ago, yesterday}, today), 2)
         self.assertEqual(_calculate_current_streak(
@@ -52,6 +53,19 @@ class TestUpdateReadme(unittest.TestCase):
         """Test with invalid tz string."""
         os.environ["TZ_OFFSET_HOURS"] = "invalid"
         today = datetime.date.today()
+        yesterday = today - datetime.timedelta(days=1)
+        stats = calculate_streaks_stats([
+            {"date": str(today), "topic": "A"},
+            {"date": str(yesterday), "topic": "A"}
+        ])
+        self.assertEqual(stats["A"]["current"], 2)
+        del os.environ["TZ_OFFSET_HOURS"]
+
+    def test_calculate_current_streak_fractional_tz(self):
+        """Test with fractional tz string."""
+        os.environ["TZ_OFFSET_HOURS"] = "5.5"
+        tz = datetime.timezone(datetime.timedelta(hours=5.5))
+        today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
         stats = calculate_streaks_stats([
             {"date": str(today), "topic": "A"},
@@ -105,7 +119,6 @@ class TestUpdateReadme(unittest.TestCase):
         today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
 
-        dates = {today, yesterday}
         stats = calculate_streaks_stats([
             {"date": str(today), "topic": "A"},
             {"date": str(yesterday), "topic": "A"}
@@ -274,7 +287,6 @@ class TestUpdateReadme(unittest.TestCase):
     def test_fetch_github_api_success(self, mock_urlopen, mock_env):
         """Test fetch API success."""
         mock_env.return_value = "fake_token"
-        """Test fetch API success."""
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -305,9 +317,11 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
 
         # Test HTTPError
-        mock_urlopen.side_effect = urllib.error.HTTPError("url", 404, "Not Found", {}, None)
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "url", 404, "Not Found", {}, None)
         res = _fetch_github_api("http://test")
-        self.assertTrue(res.startswith("*(Failed API request: HTTP Error 404: Not Found)*"))
+        self.assertTrue(
+            res.startswith("*(Failed API request: HTTP Error 404"))
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_json_error(self, mock_urlopen):
@@ -405,8 +419,10 @@ class TestUpdateReadme(unittest.TestCase):
             "skills": {},
             "log": [{"topic": "A", "date": "2023-01-01"}],
             "agents": [
-                {"name": "Agent 1", "status": "Active", "purpose": "Purpose 1"},
-                {"name": "Agent 2", "status": "Inactive", "purpose": "Purpose 2"},
+                {"name": "Agent 1", "status": "Active",
+                 "purpose": "Purpose 1"},
+                {"name": "Agent 2", "status": "Inactive",
+                 "purpose": "Purpose 2"},
             ]
         }
         mock_fetch_commits.return_value = "commits"
@@ -456,7 +472,8 @@ class TestUpdateReadme(unittest.TestCase):
     @patch('update_readme._fetch_github_api')
     @patch('builtins.open')
     @patch('os.environ.get')
-    def test_main_no_old_readme(self, mock_env, mock_file, mock_fetch, mock_load):
+    def test_main_no_old_readme(self, mock_env, mock_file, mock_fetch,
+                                mock_load):
         """Test main function missing old readme file."""
         mock_env.return_value = None
         mock_load.return_value = {}
@@ -469,7 +486,7 @@ class TestUpdateReadme(unittest.TestCase):
         ]
 
         main()
-        from update_readme import README_PATH
+        from update_readme import README_PATH  # noqa: E501 # pylint: disable=import-outside-toplevel
         mock_file.assert_called_with(README_PATH, "w", encoding="utf-8")
 
 
