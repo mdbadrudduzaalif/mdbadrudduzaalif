@@ -164,21 +164,21 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(data, {"key": "value"})
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch('update_readme.logger.warning')
+    def test_load_yaml_not_found(self, mock_logger_warning, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_logger_warning.assert_called_with(
+            "File not found at %s", "nonexistent.yml")
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('update_readme.logger.warning')
+    def test_load_yaml_error(self, mock_logger_warning, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_logger_warning.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
@@ -396,7 +396,9 @@ class TestUpdateReadme(unittest.TestCase):
            "<!-- START_AGENTS --><!-- END_AGENTS -->\n"
            "<!-- START_REFLECTION --><!-- END_REFLECTION -->")
     @patch('os.environ.get')
-    def test_main(self, mock_env, mock_file, mock_fetch_tasks,
+    @patch('update_readme.logger.info')
+    @patch('update_readme.logger.warning')
+    def test_main(self, mock_logger_warning, mock_logger_info, mock_env, mock_file, mock_fetch_tasks,
                   mock_fetch_commits, mock_load):
         """Test main function."""
         mock_env.return_value = None
@@ -439,7 +441,9 @@ class TestUpdateReadme(unittest.TestCase):
     @patch('update_readme._fetch_github_api')
     @patch('builtins.open', new_callable=mock_open)
     @patch('os.environ.get')
-    def test_main_no_change(self, mock_env, mock_file, mock_fetch, mock_load):
+    @patch('update_readme.logger.info')
+    @patch('update_readme.logger.warning')
+    def test_main_no_change(self, mock_logger_warning, mock_logger_info, mock_env, mock_file, mock_fetch, mock_load):
         """Test main function no change."""
         mock_env.return_value = None
         mock_load.return_value = {}
@@ -456,7 +460,9 @@ class TestUpdateReadme(unittest.TestCase):
     @patch('update_readme._fetch_github_api')
     @patch('builtins.open')
     @patch('os.environ.get')
-    def test_main_no_old_readme(self, mock_env, mock_file, mock_fetch, mock_load):
+    @patch('update_readme.logger.info')
+    @patch('update_readme.logger.warning')
+    def test_main_no_old_readme(self, mock_logger_warning, mock_logger_info, mock_env, mock_file, mock_fetch, mock_load):
         """Test main function missing old readme file."""
         mock_env.return_value = None
         mock_load.return_value = {}
