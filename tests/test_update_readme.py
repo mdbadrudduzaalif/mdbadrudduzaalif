@@ -4,6 +4,7 @@ import datetime
 import os
 from unittest.mock import patch, mock_open, MagicMock
 from update_readme import (
+    README_PATH,
     _calculate_longest_streak,
     _calculate_current_streak,
     render_progress_bar,
@@ -39,11 +40,13 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(_calculate_current_streak({two_days_ago}, today), 0)
         self.assertEqual(_calculate_current_streak({yesterday}, today), 1)
         self.assertEqual(_calculate_current_streak({today}, today), 1)
-        self.assertEqual(_calculate_current_streak({yesterday, today}, today), 2)
+        self.assertEqual(
+            _calculate_current_streak({yesterday, today}, today), 2)
         self.assertEqual(
             _calculate_current_streak({two_days_ago, yesterday}, today), 2)
-        self.assertEqual(_calculate_current_streak(
-            {three_days_ago, two_days_ago, yesterday, today}, today), 4)
+        self.assertEqual(
+            _calculate_current_streak(
+                {three_days_ago, two_days_ago, yesterday, today}, today), 4)
 
         if "TZ_OFFSET_HOURS" in os.environ:
             del os.environ["TZ_OFFSET_HOURS"]
@@ -105,7 +108,6 @@ class TestUpdateReadme(unittest.TestCase):
         today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
 
-        dates = {today, yesterday}
         stats = calculate_streaks_stats([
             {"date": str(today), "topic": "A"},
             {"date": str(yesterday), "topic": "A"}
@@ -164,21 +166,21 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(data, {"key": "value"})
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch('update_readme.logger.warning')
+    def test_load_yaml_not_found(self, mock_warning, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_warning.assert_called_with(
+            "Warning: File not found at %s", "nonexistent.yml")
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('update_readme.logger.warning')
+    def test_load_yaml_error(self, mock_warning, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_warning.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
@@ -274,7 +276,6 @@ class TestUpdateReadme(unittest.TestCase):
     def test_fetch_github_api_success(self, mock_urlopen, mock_env):
         """Test fetch API success."""
         mock_env.return_value = "fake_token"
-        """Test fetch API success."""
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -305,9 +306,12 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
 
         # Test HTTPError
-        mock_urlopen.side_effect = urllib.error.HTTPError("url", 404, "Not Found", {}, None)
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "url", 404, "Not Found", {}, None)
         res = _fetch_github_api("http://test")
-        self.assertTrue(res.startswith("*(Failed API request: HTTP Error 404: Not Found)*"))
+        self.assertTrue(
+            res.startswith("*(Failed API request: HTTP Error 404: Not Found)*")
+        )
 
     @patch('urllib.request.urlopen')
     def test_fetch_github_api_json_error(self, mock_urlopen):
@@ -405,8 +409,10 @@ class TestUpdateReadme(unittest.TestCase):
             "skills": {},
             "log": [{"topic": "A", "date": "2023-01-01"}],
             "agents": [
-                {"name": "Agent 1", "status": "Active", "purpose": "Purpose 1"},
-                {"name": "Agent 2", "status": "Inactive", "purpose": "Purpose 2"},
+                {"name": "Agent 1", "status": "Active",
+                 "purpose": "Purpose 1"},
+                {"name": "Agent 2", "status": "Inactive",
+                 "purpose": "Purpose 2"},
             ]
         }
         mock_fetch_commits.return_value = "commits"
@@ -456,7 +462,8 @@ class TestUpdateReadme(unittest.TestCase):
     @patch('update_readme._fetch_github_api')
     @patch('builtins.open')
     @patch('os.environ.get')
-    def test_main_no_old_readme(self, mock_env, mock_file, mock_fetch, mock_load):
+    def test_main_no_old_readme(
+            self, mock_env, mock_file, mock_fetch, mock_load):
         """Test main function missing old readme file."""
         mock_env.return_value = None
         mock_load.return_value = {}
@@ -469,7 +476,6 @@ class TestUpdateReadme(unittest.TestCase):
         ]
 
         main()
-        from update_readme import README_PATH
         mock_file.assert_called_with(README_PATH, "w", encoding="utf-8")
 
 
