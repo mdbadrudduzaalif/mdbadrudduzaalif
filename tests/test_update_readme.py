@@ -28,8 +28,8 @@ class TestUpdateReadme(unittest.TestCase):
 
     def test_calculate_current_streak_head(self):
         """Test streak head."""
-        os.environ["TZ_OFFSET_HOURS"] = "6"
-        tz_offset = datetime.timezone(datetime.timedelta(hours=6))
+        os.environ["TZ_OFFSET_HOURS"] = "5.5"
+        tz_offset = datetime.timezone(datetime.timedelta(hours=5.5))
         today = datetime.datetime.now(tz_offset).date()
         yesterday = today - datetime.timedelta(days=1)
         two_days_ago = today - datetime.timedelta(days=2)
@@ -100,8 +100,8 @@ class TestUpdateReadme(unittest.TestCase):
 
     def test_current_streak_timezone(self):
         """Test current streak timezone."""
-        os.environ["TZ_OFFSET_HOURS"] = "6"
-        tz = datetime.timezone(datetime.timedelta(hours=6))
+        os.environ["TZ_OFFSET_HOURS"] = "5.5"
+        tz = datetime.timezone(datetime.timedelta(hours=5.5))
         today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
 
@@ -164,21 +164,20 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(data, {"key": "value"})
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch('logging.warning')
+    def test_load_yaml_not_found(self, mock_warning, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_warning.assert_called_with("File not found at %s", "nonexistent.yml")
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('logging.warning')
+    def test_load_yaml_error(self, mock_warning, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_warning.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
