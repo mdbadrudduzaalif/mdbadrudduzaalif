@@ -1,28 +1,24 @@
 """Tests for update_readme.py."""
-import unittest
 import datetime
 import os
-from unittest.mock import patch, mock_open, MagicMock
-from update_readme import (
-    _calculate_longest_streak,
-    _calculate_current_streak,
-    render_progress_bar,
-    load_yaml,
-    process_learning_journey,
-    process_project_portfolio,
-    _extract_commits,
-    _fetch_github_api,
-    fetch_recent_commits,
-    fetch_open_tasks,
-    update_block,
-    main,
-    calculate_streaks_stats,
-    render_streaks_md,
-    _parse_log_dates
-)
+import unittest
+from unittest.mock import MagicMock, mock_open, patch
+
+import yaml
+
+from update_readme import (_calculate_current_streak,
+                           _calculate_longest_streak, _extract_commits,
+                           _fetch_github_api, _parse_log_dates,
+                           calculate_streaks_stats, fetch_open_tasks,
+                           fetch_recent_commits, load_yaml, main,
+                           process_learning_journey, process_project_portfolio,
+                           render_progress_bar, render_streaks_md,
+                           update_block)
 
 
 class TestUpdateReadme(unittest.TestCase):
+    # pylint: disable=too-many-public-methods
+    # pylint: disable=too-many-public-methods
     # pylint: disable=too-many-public-methods
     """Test suite for update_readme."""
 
@@ -174,11 +170,15 @@ class TestUpdateReadme(unittest.TestCase):
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
     @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('yaml.safe_load')
+    def test_load_yaml_error(self, mock_safe_load, mock_print, _mock_file):
         """Test load_yaml parse error."""
+        error_msg = "test error"
+        mock_safe_load.side_effect = yaml.YAMLError(error_msg)
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_print.assert_called_with(
+            f"Warning: Error parsing YAML file at bad.yml: {error_msg}")
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""

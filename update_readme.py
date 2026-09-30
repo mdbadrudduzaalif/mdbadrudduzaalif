@@ -3,8 +3,8 @@ import datetime
 import json
 import os
 import re
-import urllib.request
 import urllib.error
+import urllib.request
 from typing import Any, Dict, List, Set, Tuple, Union
 
 import yaml
