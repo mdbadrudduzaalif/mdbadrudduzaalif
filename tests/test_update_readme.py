@@ -362,10 +362,15 @@ class TestUpdateReadme(unittest.TestCase):
                                    {"title": "task2",
                                     "number": 2,
                                     "html_url": "url2"},
+                                   {"title": "malicious [link](http://evil.com) <script>alert(1)</script>",
+                                    "number": 3,
+                                    "html_url": "url3"},
                                    "invalid_issue"]
         res = fetch_open_tasks()
         self.assertIn("task2", res)
         self.assertNotIn("task1", res)
+        self.assertIn("malicious &#91;link&#93;(http://evil.com) &lt;script&gt;alert(1)&lt;/script&gt;", res)
+        self.assertNotIn("<script>", res)
 
     @patch('update_readme._fetch_github_api')
     def test_fetch_open_tasks_limit(self, mock_fetch):

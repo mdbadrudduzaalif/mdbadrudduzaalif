@@ -1,0 +1,10 @@
+🔒 Fix Cross-Site Scripting (XSS) and Markdown injection vulnerability in issue titles
+
+🎯 What:
+The vulnerability allowed unsanitized GitHub issue titles to be appended to the generated README.md. An attacker could create an issue with malicious HTML or Markdown and execute an XSS attack or inject arbitrary Markdown.
+
+⚠️ Risk:
+If left unfixed, an attacker could inject arbitrary HTML tags, JavaScript (e.g. `<script>alert(1)</script>`), or manipulate the structure of the Markdown document via malicious issue titles in the GitHub tracker, potentially affecting any users viewing the README or the profile.
+
+🛡️ Solution:
+The issue title is now properly escaped using `html.escape` to convert problematic HTML characters into entities. Additionally, Markdown brackets (`[` and `]`) are replaced with their corresponding HTML entity values (`&#91;` and `&#93;`), preventing attackers from sneaking in unauthorized Markdown links or format structures.
