@@ -211,6 +211,18 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertIn("**B**: ❄️ 0 days", md)
         self.assertIn("**A**: 2 days", md)
 
+    def test_process_learning_journey_invalid_skills(self):
+        """Test processing learning journey with invalid skills dict."""
+        skills = {
+            "NoneSkill": None,
+            "IntSkill": 123,
+            "StringSkill": "not_a_dict"
+        }
+        prog, _ = process_learning_journey(skills)
+        self.assertIn("- **NoneSkill**:", prog)
+        self.assertIn("- **IntSkill**:", prog)
+        self.assertIn("- **StringSkill**:", prog)
+
     def test_process_learning_journey(self):
         """Test processing learning journey."""
         skills = {
