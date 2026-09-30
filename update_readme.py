@@ -71,7 +71,8 @@ def _calculate_current_streak(
         dates_set: Set[datetime.date],
         today: datetime.date) -> int:
     """Calculate current streak."""
-    yesterday = today - datetime.timedelta(days=1)
+    one_day = datetime.timedelta(days=1)
+    yesterday = today - one_day
     current = 0
 
     if today in dates_set:
@@ -85,7 +86,7 @@ def _calculate_current_streak(
         current_date = start_date
         while current_date in dates_set:
             current += 1
-            current_date -= datetime.timedelta(days=1)
+            current_date -= one_day
 
     return current
 
