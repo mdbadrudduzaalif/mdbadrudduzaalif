@@ -1,5 +1,6 @@
 """Module to update README.md with learning streaks and project info."""
 import datetime
+import html
 import json
 import os
 import re
@@ -237,6 +238,8 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
                     "Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
+            message = html.escape(message).replace(
+                '[', '&#91;').replace(']', '&#93;').replace('`', '&#96;')
             commits.append(
                 f"- **{repo_name}**: {message} ([`{sha}`]"
                 f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501

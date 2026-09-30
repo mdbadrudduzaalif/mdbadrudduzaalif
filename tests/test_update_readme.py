@@ -24,6 +24,8 @@ from update_readme import (
 
 class TestUpdateReadme(unittest.TestCase):
     # pylint: disable=too-many-public-methods
+    # pylint: disable=too-many-public-methods
+    # pylint: disable=too-many-public-methods
     """Test suite for update_readme."""
 
     def test_calculate_current_streak_head(self):
@@ -257,6 +259,18 @@ class TestUpdateReadme(unittest.TestCase):
 
         # Test invalid input
         self.assertEqual(_extract_commits({"invalid": "type"}), [])
+
+    def test_extract_commits_sanitization(self):
+        """Test extracting commits sanitization."""
+        events = [
+            {"type": "PushEvent",
+             "repo": {"name": "test/repo"},
+             "payload": {"commits": [{"message": "fix: [urgent] <script> & `test`",  # noqa: E501
+                                      "sha": "abcdef"}]}}
+        ]
+        commits = _extract_commits(events)
+        self.assertEqual(len(commits), 1)
+        self.assertIn("fix: &#91;urgent&#93; &lt;script&gt; &amp; &#96;test&#96;", commits[0])  # noqa: E501
 
     def test_extract_commits_limit(self):
         """Test extracting commits limit."""
