@@ -41,8 +41,7 @@ def _parse_log_dates(
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
