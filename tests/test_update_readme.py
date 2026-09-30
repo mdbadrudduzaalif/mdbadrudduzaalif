@@ -1,4 +1,5 @@
 """Tests for update_readme.py."""
+
 import unittest
 import datetime
 import os
@@ -18,7 +19,8 @@ from update_readme import (
     main,
     calculate_streaks_stats,
     render_streaks_md,
-    _parse_log_dates
+    _parse_log_dates,
+    sanitize_markdown,
 )
 
 
@@ -40,10 +42,13 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(_calculate_current_streak({yesterday}, today), 1)
         self.assertEqual(_calculate_current_streak({today}, today), 1)
         self.assertEqual(_calculate_current_streak({yesterday, today}, today), 2)
+        self.assertEqual(_calculate_current_streak({two_days_ago, yesterday}, today), 2)
         self.assertEqual(
-            _calculate_current_streak({two_days_ago, yesterday}, today), 2)
-        self.assertEqual(_calculate_current_streak(
-            {three_days_ago, two_days_ago, yesterday, today}, today), 4)
+            _calculate_current_streak(
+                {three_days_ago, two_days_ago, yesterday, today}, today
+            ),
+            4,
+        )
 
         if "TZ_OFFSET_HOURS" in os.environ:
             del os.environ["TZ_OFFSET_HOURS"]
@@ -53,10 +58,9 @@ class TestUpdateReadme(unittest.TestCase):
         os.environ["TZ_OFFSET_HOURS"] = "invalid"
         today = datetime.date.today()
         yesterday = today - datetime.timedelta(days=1)
-        stats = calculate_streaks_stats([
-            {"date": str(today), "topic": "A"},
-            {"date": str(yesterday), "topic": "A"}
-        ])
+        stats = calculate_streaks_stats(
+            [{"date": str(today), "topic": "A"}, {"date": str(yesterday), "topic": "A"}]
+        )
         self.assertEqual(stats["A"]["current"], 2)
         del os.environ["TZ_OFFSET_HOURS"]
 
@@ -105,11 +109,9 @@ class TestUpdateReadme(unittest.TestCase):
         today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
 
-        dates = {today, yesterday}
-        stats = calculate_streaks_stats([
-            {"date": str(today), "topic": "A"},
-            {"date": str(yesterday), "topic": "A"}
-        ])
+        stats = calculate_streaks_stats(
+            [{"date": str(today), "topic": "A"}, {"date": str(yesterday), "topic": "A"}]
+        )
         self.assertEqual(stats["A"]["current"], 2)
 
         # Clean up
@@ -157,28 +159,29 @@ class TestUpdateReadme(unittest.TestCase):
         # Edge case test
         self.assertEqual(render_progress_bar(15, 10), "`██████████ 100%`")
 
-    @patch('builtins.open', new_callable=mock_open, read_data="key: value")
+    @patch("builtins.open", new_callable=mock_open, read_data="key: value")
     def test_load_yaml_success(self, _mock_file):
         """Test load_yaml success."""
         data = load_yaml("test.yml")
         self.assertEqual(data, {"key": "value"})
 
-    @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch("builtins.open", side_effect=FileNotFoundError)
+    @patch("logging.warning")
+    def test_load_yaml_not_found(self, mock_warning, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_warning.assert_called_with(
+            "Warning: File not found at %s", "nonexistent.yml"
+        )
 
-    @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch("builtins.open", new_callable=mock_open, read_data="[")
+    @patch("logging.warning")
+    def test_load_yaml_error(self, mock_warning, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_warning.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
@@ -202,10 +205,7 @@ class TestUpdateReadme(unittest.TestCase):
     def test_render_streaks_md(self):
         """Test rendering streaks."""
         self.assertEqual(render_streaks_md({}), "No active streaks.")
-        stats = {
-            "A": {
-                "current": 1, "longest": 2}, "B": {
-                "current": 0, "longest": 1}}
+        stats = {"A": {"current": 1, "longest": 2}, "B": {"current": 0, "longest": 1}}
         md = render_streaks_md(stats)
         self.assertIn("**A**: 🔥 1 day", md)
         self.assertIn("**B**: ❄️ 0 days", md)
@@ -214,9 +214,8 @@ class TestUpdateReadme(unittest.TestCase):
     def test_process_learning_journey(self):
         """Test processing learning journey."""
         skills = {
-            "SQL": {"completed": ["a"], "in_progress": ["b"],
-                    "planned": ["c"]},
-            "Empty": []
+            "SQL": {"completed": ["a"], "in_progress": ["b"], "planned": ["c"]},
+            "Empty": [],
         }
         prog, path = process_learning_journey(skills)
         self.assertIn("- **SQL**:", prog)
@@ -230,7 +229,7 @@ class TestUpdateReadme(unittest.TestCase):
         projects = {
             "Proj1": {
                 "features": [{"completed": True}, {"completed": False}],
-                "focus": ["focus 1"]
+                "focus": ["focus 1"],
             }
         }
         md = process_project_portfolio(projects)
@@ -242,14 +241,18 @@ class TestUpdateReadme(unittest.TestCase):
     def test_extract_commits(self):
         """Test extracting commits."""
         events = [
-            {"type": "PushEvent",
-             "repo": {"name": "test/repo"},
-             "payload": {"commits": [{"message": "msg1",
-                                      "sha": "1234567890"},
-                                     {"message": "Merge pull request",
-                                      "sha": "abcdef"}]}},
+            {
+                "type": "PushEvent",
+                "repo": {"name": "test/repo"},
+                "payload": {
+                    "commits": [
+                        {"message": "msg1", "sha": "1234567890"},
+                        {"message": "Merge pull request", "sha": "abcdef"},
+                    ]
+                },
+            },
             {"type": "OtherEvent"},
-            "invalid_event"
+            "invalid_event",
         ]
         commits = _extract_commits(events)
         self.assertEqual(len(commits), 1)
@@ -261,20 +264,24 @@ class TestUpdateReadme(unittest.TestCase):
     def test_extract_commits_limit(self):
         """Test extracting commits limit."""
         events = [
-            {"type": "PushEvent",
-             "repo": {"name": "test/repo"},
-             "payload": {"commits": [{"message": f"msg{i}",
-                                      "sha": f"sha{i}"} for i in range(10)]}},
+            {
+                "type": "PushEvent",
+                "repo": {"name": "test/repo"},
+                "payload": {
+                    "commits": [
+                        {"message": f"msg{i}", "sha": f"sha{i}"} for i in range(10)
+                    ]
+                },
+            },
         ]
         commits = _extract_commits(events)
         self.assertEqual(len(commits), 5)
 
-    @patch('os.environ.get')
-    @patch('urllib.request.urlopen')
+    @patch("os.environ.get")
+    @patch("urllib.request.urlopen")
     def test_fetch_github_api_success(self, mock_urlopen, mock_env):
         """Test fetch API success."""
         mock_env.return_value = "fake_token"
-        """Test fetch API success."""
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -283,7 +290,7 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, {"key": "value"})
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_fetch_github_api_error_response(self, mock_urlopen):
         """Test fetch API error dict."""
         mock_response = MagicMock()
@@ -294,7 +301,7 @@ class TestUpdateReadme(unittest.TestCase):
         res = _fetch_github_api("http://test")
         self.assertEqual(res, "*(API Error: API rate limit)*")
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_fetch_github_api_exception(self, mock_urlopen):
         """Test fetch API exception."""
         import urllib.error  # pylint: disable=import-outside-toplevel
@@ -305,22 +312,26 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(res, "*(Failed API request: <urlopen error Error>)*")
 
         # Test HTTPError
-        mock_urlopen.side_effect = urllib.error.HTTPError("url", 404, "Not Found", {}, None)
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "url", 404, "Not Found", {}, None
+        )
         res = _fetch_github_api("http://test")
-        self.assertTrue(res.startswith("*(Failed API request: HTTP Error 404: Not Found)*"))
+        self.assertTrue(
+            res.startswith("*(Failed API request: HTTP Error 404: Not Found)*")
+        )
 
-    @patch('urllib.request.urlopen')
+    @patch("urllib.request.urlopen")
     def test_fetch_github_api_json_error(self, mock_urlopen):
         """Test fetch API JSON error."""
         mock_response = MagicMock()
-        mock_response.read.return_value = b'not json'
+        mock_response.read.return_value = b"not json"
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
         res = _fetch_github_api("http://test")
         self.assertTrue(res.startswith("*(Failed to parse JSON"))
 
-    @patch('update_readme._fetch_github_api')
+    @patch("update_readme._fetch_github_api")
     def test_fetch_recent_commits(self, mock_fetch):
         """Test fetch recent commits."""
         # Error case
@@ -329,17 +340,19 @@ class TestUpdateReadme(unittest.TestCase):
 
         # Empty case
         mock_fetch.return_value = []
-        self.assertEqual(
-            fetch_recent_commits(),
-            "No recent public commits found.")
+        self.assertEqual(fetch_recent_commits(), "No recent public commits found.")
 
         # Success case
-        mock_fetch.return_value = [{"type": "PushEvent", "repo": {
-            "name": "r"},
-            "payload": {"commits": [{"message": "m", "sha": "s"}]}}]
+        mock_fetch.return_value = [
+            {
+                "type": "PushEvent",
+                "repo": {"name": "r"},
+                "payload": {"commits": [{"message": "m", "sha": "s"}]},
+            }
+        ]
         self.assertIn("m", fetch_recent_commits())
 
-    @patch('update_readme._fetch_github_api')
+    @patch("update_readme._fetch_github_api")
     def test_fetch_open_tasks(self, mock_fetch):
         """Test fetch open tasks."""
         # Error case
@@ -355,26 +368,23 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertIn("No active tasks", fetch_open_tasks())
 
         # Success case
-        mock_fetch.return_value = [{"title": "task1",
-                                    "number": 1,
-                                    "html_url": "url",
-                                    "pull_request": {}},
-                                   {"title": "task2",
-                                    "number": 2,
-                                    "html_url": "url2"},
-                                   "invalid_issue"]
+        mock_fetch.return_value = [
+            {"title": "task1", "number": 1, "html_url": "url", "pull_request": {}},
+            {"title": "task2", "number": 2, "html_url": "url2"},
+            "invalid_issue",
+        ]
         res = fetch_open_tasks()
         self.assertIn("task2", res)
         self.assertNotIn("task1", res)
 
-    @patch('update_readme._fetch_github_api')
+    @patch("update_readme._fetch_github_api")
     def test_fetch_open_tasks_limit(self, mock_fetch):
         """Test fetch open tasks limit."""
         mock_fetch.return_value = [
-            {"title": f"task{i}", "number": i,
-             "html_url": f"url{i}"} for i in range(10)]
+            {"title": f"task{i}", "number": i, "html_url": f"url{i}"} for i in range(10)
+        ]
         res = fetch_open_tasks()
-        self.assertEqual(len(res.split('\n')), 5)
+        self.assertEqual(len(res.split("\n")), 5)
 
     def test_update_block(self):
         """Test update block."""
@@ -383,21 +393,32 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertIn("new", new_content)
         self.assertNotIn("old", new_content)
 
-    @patch('update_readme.load_yaml')
-    @patch('update_readme.fetch_recent_commits')
-    @patch('update_readme.fetch_open_tasks')
-    @patch('builtins.open', new_callable=mock_open,
-           read_data="<!-- START_PORTFOLIO --><!-- END_PORTFOLIO -->\n"
-           "<!-- START_STREAKS --><!-- END_STREAKS -->\n"
-           "<!-- START_LEARNING_PROGRESS --><!-- END_LEARNING_PROGRESS -->\n"
-           "<!-- START_LEARNING_PATH --><!-- END_LEARNING_PATH -->\n"
-           "<!-- START_COMMITS --><!-- END_COMMITS -->\n"
-           "<!-- START_TASKS --><!-- END_TASKS -->\n"
-           "<!-- START_AGENTS --><!-- END_AGENTS -->\n"
-           "<!-- START_REFLECTION --><!-- END_REFLECTION -->")
-    @patch('os.environ.get')
-    def test_main(self, mock_env, mock_file, mock_fetch_tasks,
-                  mock_fetch_commits, mock_load):
+    def test_sanitize_markdown(self):
+        """Test markdown sanitization."""
+        self.assertEqual(sanitize_markdown(None), "")
+        self.assertEqual(sanitize_markdown(123), "")
+        self.assertEqual(sanitize_markdown("<script>"), "&lt;script&gt;")
+        self.assertEqual(sanitize_markdown("[link](url)"), "&#91;link&#93;(url)")
+
+    @patch("update_readme.load_yaml")
+    @patch("update_readme.fetch_recent_commits")
+    @patch("update_readme.fetch_open_tasks")
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data="<!-- START_PORTFOLIO --><!-- END_PORTFOLIO -->\n"
+        "<!-- START_STREAKS --><!-- END_STREAKS -->\n"
+        "<!-- START_LEARNING_PROGRESS --><!-- END_LEARNING_PROGRESS -->\n"
+        "<!-- START_LEARNING_PATH --><!-- END_LEARNING_PATH -->\n"
+        "<!-- START_COMMITS --><!-- END_COMMITS -->\n"
+        "<!-- START_TASKS --><!-- END_TASKS -->\n"
+        "<!-- START_AGENTS --><!-- END_AGENTS -->\n"
+        "<!-- START_REFLECTION --><!-- END_REFLECTION -->",
+    )
+    @patch("os.environ.get")
+    def test_main(
+        self, mock_env, mock_file, mock_fetch_tasks, mock_fetch_commits, mock_load
+    ):
         """Test main function."""
         mock_env.return_value = None
         mock_load.return_value = {
@@ -407,7 +428,7 @@ class TestUpdateReadme(unittest.TestCase):
             "agents": [
                 {"name": "Agent 1", "status": "Active", "purpose": "Purpose 1"},
                 {"name": "Agent 2", "status": "Inactive", "purpose": "Purpose 2"},
-            ]
+            ],
         }
         mock_fetch_commits.return_value = "commits"
         mock_fetch_tasks.return_value = "tasks"
@@ -426,7 +447,7 @@ class TestUpdateReadme(unittest.TestCase):
         file_handles = [
             mock_open(read_data=mock_read_data).return_value,
             mock_open(read_data="something old").return_value,
-            mock_open().return_value
+            mock_open().return_value,
         ]
         mock_file.side_effect = file_handles
 
@@ -435,10 +456,10 @@ class TestUpdateReadme(unittest.TestCase):
         # Check that files were written
         file_handles[2].write.assert_called()
 
-    @patch('update_readme.load_yaml')
-    @patch('update_readme._fetch_github_api')
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('os.environ.get')
+    @patch("update_readme.load_yaml")
+    @patch("update_readme._fetch_github_api")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.environ.get")
     def test_main_no_change(self, mock_env, mock_file, mock_fetch, mock_load):
         """Test main function no change."""
         mock_env.return_value = None
@@ -452,10 +473,11 @@ class TestUpdateReadme(unittest.TestCase):
 
         main()
 
-    @patch('update_readme.load_yaml')
-    @patch('update_readme._fetch_github_api')
-    @patch('builtins.open')
-    @patch('os.environ.get')
+    @patch("update_readme.load_yaml")
+    @patch("update_readme._fetch_github_api")
+    @patch("update_readme.README_PATH", "fake_readme.md")
+    @patch("builtins.open")
+    @patch("os.environ.get")
     def test_main_no_old_readme(self, mock_env, mock_file, mock_fetch, mock_load):
         """Test main function missing old readme file."""
         mock_env.return_value = None
@@ -465,12 +487,11 @@ class TestUpdateReadme(unittest.TestCase):
         mock_file.side_effect = [
             mock_open(read_data="some content").return_value,
             FileNotFoundError,
-            mock_open().return_value
+            mock_open().return_value,
         ]
 
         main()
-        from update_readme import README_PATH
-        mock_file.assert_called_with(README_PATH, "w", encoding="utf-8")
+        mock_file.assert_called_with("fake_readme.md", "w", encoding="utf-8")
 
 
 if __name__ == "__main__":  # pragma: no cover
