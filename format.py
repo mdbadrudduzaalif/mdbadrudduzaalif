@@ -1,16 +1,27 @@
-import re
-with open('tests/test_update_readme.py', 'r') as f:
-    lines = f.readlines()
+#!/usr/bin/env python3
+"""Run linters and formatters on the codebase."""
 
-new_lines = []
-for i, line in enumerate(lines):
-    # Fix the specific lines reported by flake8
-    if i + 1 == 284:
-        new_lines.append(line.replace('        mock_response.read.return_value = b\'{"message": "API rate limit"}\' # noqa', '        mock_response.read.return_value = b\'{"message": "API rate limit"}\'  # noqa'))
-    elif i + 1 == 318:
-        new_lines.append(line.replace('        mock_fetch.return_value = [{"type": "PushEvent", "repo": { # noqa', '        mock_fetch.return_value = [{"type": "PushEvent", "repo": {  # noqa'))
-    else:
-        new_lines.append(line)
+import subprocess
+import sys
 
-with open('tests/test_update_readme.py', 'w') as f:
-    f.writelines(new_lines)
+
+def main():
+    """Run isort, black, and flake8."""
+    print("Running isort...")
+    subprocess.run(["isort", "."], check=False)
+
+    print("\nRunning black...")
+    subprocess.run(["black", "."], check=False)
+
+    print("\nRunning flake8...")
+    result = subprocess.run(["flake8", "."], check=False)
+
+    if result.returncode != 0:
+        print("\nflake8 found issues.")
+        sys.exit(result.returncode)
+
+    print("\nFormatting and linting complete.")
+
+
+if __name__ == "__main__":
+    main()
