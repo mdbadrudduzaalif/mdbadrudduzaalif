@@ -18,7 +18,8 @@ from update_readme import (
     main,
     calculate_streaks_stats,
     render_streaks_md,
-    _parse_log_dates
+    _parse_log_dates,
+    sanitize_markdown
 )
 
 
@@ -47,6 +48,16 @@ class TestUpdateReadme(unittest.TestCase):
 
         if "TZ_OFFSET_HOURS" in os.environ:
             del os.environ["TZ_OFFSET_HOURS"]
+
+    def test_sanitize_markdown(self):
+        """Test sanitize_markdown prevents XSS and markdown injection."""
+        # HTML escaping
+        self.assertEqual(sanitize_markdown("<script>alert('xss')</script>"),
+                         "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;")
+
+        # Markdown bracket escaping
+        self.assertEqual(sanitize_markdown("[Link](http://malicious.com)"),
+                         "&#91;Link&#93;(http://malicious.com)")
 
     def test_calculate_current_streak_invalid_tz(self):
         """Test with invalid tz string."""
@@ -105,7 +116,6 @@ class TestUpdateReadme(unittest.TestCase):
         today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
 
-        dates = {today, yesterday}
         stats = calculate_streaks_stats([
             {"date": str(today), "topic": "A"},
             {"date": str(yesterday), "topic": "A"}
@@ -247,7 +257,9 @@ class TestUpdateReadme(unittest.TestCase):
              "payload": {"commits": [{"message": "msg1",
                                       "sha": "1234567890"},
                                      {"message": "Merge pull request",
-                                      "sha": "abcdef"}]}},
+                                      "sha": "abcdef"},
+                                     {"message": "msg2",
+                                      "sha": ""}]}},
             {"type": "OtherEvent"},
             "invalid_event"
         ]
@@ -274,7 +286,6 @@ class TestUpdateReadme(unittest.TestCase):
     def test_fetch_github_api_success(self, mock_urlopen, mock_env):
         """Test fetch API success."""
         mock_env.return_value = "fake_token"
-        """Test fetch API success."""
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -336,7 +347,7 @@ class TestUpdateReadme(unittest.TestCase):
         # Success case
         mock_fetch.return_value = [{"type": "PushEvent", "repo": {
             "name": "r"},
-            "payload": {"commits": [{"message": "m", "sha": "s"}]}}]
+            "payload": {"commits": [{"message": "m", "sha": "s"}, {"message": "", "sha": "1"}]}}]
         self.assertIn("m", fetch_recent_commits())
 
     @patch('update_readme._fetch_github_api')
@@ -468,9 +479,9 @@ class TestUpdateReadme(unittest.TestCase):
             mock_open().return_value
         ]
 
+        import update_readme  # pylint: disable=import-outside-toplevel
         main()
-        from update_readme import README_PATH
-        mock_file.assert_called_with(README_PATH, "w", encoding="utf-8")
+        mock_file.assert_called_with(update_readme.README_PATH, "w", encoding="utf-8")
 
 
 if __name__ == "__main__":  # pragma: no cover
