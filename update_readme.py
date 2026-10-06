@@ -1,5 +1,6 @@
 """Module to update README.md with learning streaks and project info."""
 import datetime
+import html
 import json
 import os
 import re
@@ -15,6 +16,11 @@ README_PATH = os.path.join(BASE_DIR, "README.md")
 LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
 PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
+
+
+def escape_markdown(text: str) -> str:
+    """Escape markdown and HTML characters."""
+    return html.escape(text).replace("[", "&#91;").replace("]", "&#93;")
 
 
 def load_yaml(path: str) -> Dict[str, Any]:
@@ -41,8 +47,7 @@ def _parse_log_dates(
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
@@ -230,6 +235,7 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
         if event.get('type') != 'PushEvent':
             continue
         repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
+        repo_name = escape_markdown(repo_name)
         for commit in event.get('payload', {}).get('commits', []):
             message = commit.get('message', '').split('\n')[0]
             sha = commit.get('sha', '')[:7]
@@ -237,8 +243,9 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
                     "Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
+            safe_message = escape_markdown(message)
             commits.append(
-                f"- **{repo_name}**: {message} ([`{sha}`]"
+                f"- **{repo_name}**: {safe_message} ([`{sha}`]"
                 f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501
             if len(commits) >= 5:
                 return commits
@@ -247,7 +254,7 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
 
 def _fetch_github_api(url: str) -> Union[str, Any]:
     """Fetch github API."""
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'mdbadrudduzaalif-profile-readme-updater'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
@@ -300,7 +307,7 @@ def fetch_open_tasks() -> str:
         if not isinstance(issue, dict):
             continue
         if 'pull_request' not in issue:
-            title = issue.get('title', '')
+            title = escape_markdown(issue.get('title', ''))
             number = issue.get('number', '')
             html_url = issue.get('html_url', '')
             tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
