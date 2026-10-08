@@ -1,5 +1,6 @@
 """Module to update README.md with learning streaks and project info."""
 import datetime
+import html
 import json
 import os
 import re
@@ -41,8 +42,7 @@ def _parse_log_dates(
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
@@ -231,10 +231,13 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
             continue
         repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
         for commit in event.get('payload', {}).get('commits', []):
-            message = commit.get('message', '').split('\n')[0]
+            raw_message = commit.get('message', '').split('\n')[0]
+            if not raw_message:
+                continue
+
+            message = html.escape(raw_message).replace('[', '&#91;').replace(']', '&#93;')
             sha = commit.get('sha', '')[:7]
-            if not message or message.startswith(
-                    "Merge") or sha in seen_commits:
+            if message.startswith("Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
             commits.append(
@@ -300,7 +303,7 @@ def fetch_open_tasks() -> str:
         if not isinstance(issue, dict):
             continue
         if 'pull_request' not in issue:
-            title = issue.get('title', '')
+            title = html.escape(issue.get('title', '')).replace('[', '&#91;').replace(']', '&#93;')
             number = issue.get('number', '')
             html_url = issue.get('html_url', '')
             tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
