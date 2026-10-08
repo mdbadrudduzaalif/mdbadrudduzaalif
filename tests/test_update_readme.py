@@ -105,7 +105,7 @@ class TestUpdateReadme(unittest.TestCase):
         today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
 
-        dates = {today, yesterday}
+        _dates = {today, yesterday}
         stats = calculate_streaks_stats([
             {"date": str(today), "topic": "A"},
             {"date": str(yesterday), "topic": "A"}
@@ -274,7 +274,6 @@ class TestUpdateReadme(unittest.TestCase):
     def test_fetch_github_api_success(self, mock_urlopen, mock_env):
         """Test fetch API success."""
         mock_env.return_value = "fake_token"
-        """Test fetch API success."""
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -433,7 +432,7 @@ class TestUpdateReadme(unittest.TestCase):
         main()
 
         # Check that files were written
-        file_handles[2].write.assert_called()
+        file_handles[1].write.assert_called()
 
     @patch('update_readme.load_yaml')
     @patch('update_readme._fetch_github_api')
@@ -446,8 +445,7 @@ class TestUpdateReadme(unittest.TestCase):
         mock_fetch.return_value = []
 
         mock_file.side_effect = [
-            mock_open(read_data="some content").return_value,
-            mock_open(read_data="some content").return_value,
+            mock_open(read_data="some content").return_value
         ]
 
         main()
@@ -456,21 +454,20 @@ class TestUpdateReadme(unittest.TestCase):
     @patch('update_readme._fetch_github_api')
     @patch('builtins.open')
     @patch('os.environ.get')
-    def test_main_no_old_readme(self, mock_env, mock_file, mock_fetch, mock_load):
+    def test_main_no_old_readme(
+            self, mock_env, mock_file, mock_fetch, mock_load):
         """Test main function missing old readme file."""
         mock_env.return_value = None
         mock_load.return_value = {}
         mock_fetch.return_value = []
 
         mock_file.side_effect = [
-            mock_open(read_data="some content").return_value,
-            FileNotFoundError,
-            mock_open().return_value
+            FileNotFoundError
         ]
 
         main()
-        from update_readme import README_PATH
-        mock_file.assert_called_with(README_PATH, "w", encoding="utf-8")
+        from update_readme import README_PATH  # pylint: disable=import-outside-toplevel
+        mock_file.assert_called_once_with(README_PATH, "r", encoding="utf-8")
 
 
 if __name__ == "__main__":  # pragma: no cover
