@@ -247,7 +247,9 @@ class TestUpdateReadme(unittest.TestCase):
              "payload": {"commits": [{"message": "msg1",
                                       "sha": "1234567890"},
                                      {"message": "Merge pull request",
-                                      "sha": "abcdef"}]}},
+                                      "sha": "abcdef"},
+                                     {"message": "",
+                                      "sha": "empty123"}]}},
             {"type": "OtherEvent"},
             "invalid_event"
         ]
