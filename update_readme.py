@@ -366,8 +366,13 @@ def main() -> None:
     open_tasks = fetch_open_tasks()
 
     # Read README
-    with open(README_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
+    try:
+        with open(README_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        content = ""
+
+    old_content = content
 
     # Replace content blocks
     replacements = {
@@ -385,12 +390,6 @@ def main() -> None:
         content = update_block(content, tag, new_value)
 
     # Write back
-    try:
-        with open(README_PATH, "r", encoding="utf-8") as f:
-            old_content = f.read()
-    except FileNotFoundError:
-        old_content = ""
-
     if content != old_content:
         with open(README_PATH, "w", encoding="utf-8") as f:
             f.write(content)
