@@ -255,6 +255,19 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(len(commits), 1)
         self.assertIn("msg1", commits[0])
 
+        # Test XSS and markdown injection escaping
+        malicious_events = [
+            {"type": "PushEvent",
+             "repo": {"name": "test/<script>alert(1)</script>"},
+             "payload": {"commits": [{"message": "[malicious](link)",
+                                      "sha": "1234567890"}]}}
+        ]
+        malicious_commits = _extract_commits(malicious_events)
+        self.assertEqual(len(malicious_commits), 1)
+        # Because we split by '/' and take the last part, 'repo_name' becomes '<script>alert(1)</script>'
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", malicious_commits[0])
+        self.assertIn("&#91;malicious&#93;(link)", malicious_commits[0])
+
         # Test invalid input
         self.assertEqual(_extract_commits({"invalid": "type"}), [])
 
@@ -333,6 +346,12 @@ class TestUpdateReadme(unittest.TestCase):
             fetch_recent_commits(),
             "No recent public commits found.")
 
+        # Invalid list case
+        mock_fetch.return_value = {"not": "list"}
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
+
         # Success case
         mock_fetch.return_value = [{"type": "PushEvent", "repo": {
             "name": "r"},
@@ -348,6 +367,10 @@ class TestUpdateReadme(unittest.TestCase):
 
         # Empty case
         mock_fetch.return_value = []
+        self.assertIn("No active tasks", fetch_open_tasks())
+
+        # Test non-dict issue list item skipping
+        mock_fetch.return_value = ["not_a_dict_issue"]
         self.assertIn("No active tasks", fetch_open_tasks())
 
         # Invalid input case
@@ -366,6 +389,13 @@ class TestUpdateReadme(unittest.TestCase):
         res = fetch_open_tasks()
         self.assertIn("task2", res)
         self.assertNotIn("task1", res)
+
+        # Test markdown injection escaping
+        mock_fetch.return_value = [{"title": "[malicious] <script>",
+                                    "number": 3,
+                                    "html_url": "url3"}]
+        res_malicious = fetch_open_tasks()
+        self.assertIn("&#91;malicious&#93; &lt;script&gt;", res_malicious)
 
     @patch('update_readme._fetch_github_api')
     def test_fetch_open_tasks_limit(self, mock_fetch):
