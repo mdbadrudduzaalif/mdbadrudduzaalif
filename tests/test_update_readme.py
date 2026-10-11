@@ -18,7 +18,8 @@ from update_readme import (
     main,
     calculate_streaks_stats,
     render_streaks_md,
-    _parse_log_dates
+    _parse_log_dates,
+    sanitize_text
 )
 
 
@@ -164,21 +165,21 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(data, {"key": "value"})
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch('update_readme.logger.warning')
+    def test_load_yaml_not_found(self, mock_warning, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_warning.assert_called_with(
+            "File not found at %s", "nonexistent.yml")
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('update_readme.logger.warning')
+    def test_load_yaml_error(self, mock_warning, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_warning.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
@@ -258,6 +259,15 @@ class TestUpdateReadme(unittest.TestCase):
         # Test invalid input
         self.assertEqual(_extract_commits({"invalid": "type"}), [])
 
+    def test_sanitize_text(self):
+        """Test sanitize text."""
+        self.assertEqual(sanitize_text(""), "")
+        self.assertEqual(sanitize_text(None), "")
+        self.assertEqual(sanitize_text("normal text"), "normal text")
+        self.assertEqual(sanitize_text("<script>alert('xss')</script>"), "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;")
+        self.assertEqual(sanitize_text("Markdown [link](url)"), "Markdown &#91;link&#93;(url)")
+        self.assertEqual(sanitize_text("A & B"), "A &amp; B")
+
     def test_extract_commits_limit(self):
         """Test extracting commits limit."""
         events = [
@@ -329,6 +339,12 @@ class TestUpdateReadme(unittest.TestCase):
 
         # Empty case
         mock_fetch.return_value = []
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
+
+        # Not a list case
+        mock_fetch.return_value = {}
         self.assertEqual(
             fetch_recent_commits(),
             "No recent public commits found.")
