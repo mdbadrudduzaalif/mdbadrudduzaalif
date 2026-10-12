@@ -1,6 +1,8 @@
 """Module to update README.md with learning streaks and project info."""
 import datetime
+import html
 import json
+import logging
 import os
 import re
 import urllib.request
@@ -8,6 +10,10 @@ import urllib.error
 from typing import Any, Dict, List, Set, Tuple, Union
 
 import yaml
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,11 +29,18 @@ def load_yaml(path: str) -> Dict[str, Any]:
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except FileNotFoundError:
-        print(f"Warning: File not found at {path}")
+        logger.warning("File not found at %s", path)
         return {}
     except yaml.YAMLError as e:
-        print(f"Warning: Error parsing YAML file at {path}: {e}")
+        logger.warning("Error parsing YAML file at %s: %s", path, e)
         return {}
+
+
+def sanitize_text(text: str) -> str:
+    """Sanitize text to prevent XSS and Markdown injection."""
+    sanitized = html.escape(text)
+    sanitized = sanitized.replace('[', '&#91;').replace(']', '&#93;')
+    return sanitized
 
 # 1. Streak & Longest Streak Calculation
 
@@ -35,14 +48,13 @@ def load_yaml(path: str) -> Dict[str, Any]:
 def _parse_log_dates(
         log_entries: List[Dict[str, str]]) -> Dict[str, Set[datetime.date]]:
     """Parse log dates."""
-    topic_dates = {}
+    topic_dates: Dict[str, Set[datetime.date]] = {}
     for entry in log_entries:
         date_str = entry.get("date")
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
@@ -237,8 +249,9 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
                     "Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
+            safe_message = sanitize_text(message)
             commits.append(
-                f"- **{repo_name}**: {message} ([`{sha}`]"
+                f"- **{repo_name}**: {safe_message} ([`{sha}`]"
                 f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501
             if len(commits) >= 5:
                 return commits
@@ -247,7 +260,7 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
 
 def _fetch_github_api(url: str) -> Union[str, Any]:
     """Fetch github API."""
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'mdbadrudduzaalif-profile-readme-updater'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
@@ -273,8 +286,10 @@ def fetch_recent_commits() -> str:
     """Fetch recent commits."""
     url = "https://api.github.com/users/mdbadrudduzaalif/events"
     events = _fetch_github_api(url)
-    if isinstance(events, str) and events.startswith("*("):
-        return events  # return the error string
+    if isinstance(events, str):
+        if events.startswith("*("):
+            return events  # return the error string
+        return "No recent public commits found."
 
     commits = _extract_commits(events)
     if not commits:
@@ -303,7 +318,8 @@ def fetch_open_tasks() -> str:
             title = issue.get('title', '')
             number = issue.get('number', '')
             html_url = issue.get('html_url', '')
-            tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
+            safe_title = sanitize_text(title)
+            tasks.append(f"- [ ] {safe_title} ([#{number}]({html_url}))")
         if len(tasks) >= 5:
             break
     if not tasks:
@@ -325,7 +341,7 @@ def main() -> None:
     """Main function."""
     # pylint: disable=too-many-locals
     if not os.environ.get("GITHUB_TOKEN"):
-        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
+        logger.warning("GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
 
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
@@ -394,9 +410,9 @@ def main() -> None:
     if content != old_content:
         with open(README_PATH, "w", encoding="utf-8") as f:
             f.write(content)
-        print("README updated successfully.")
+        logger.info("README updated successfully.")
     else:
-        print("README content is already up-to-date. No rewrite needed.")
+        logger.info("README content is already up-to-date. No rewrite needed.")
 
 
 if __name__ == "__main__":  # pragma: no cover
