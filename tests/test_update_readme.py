@@ -18,7 +18,8 @@ from update_readme import (
     main,
     calculate_streaks_stats,
     render_streaks_md,
-    _parse_log_dates
+    _parse_log_dates,
+    sanitize_text
 )
 
 
@@ -164,21 +165,20 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(data, {"key": "value"})
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch('update_readme.logging.warning')
+    def test_load_yaml_not_found(self, mock_warning, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_warning.assert_called_with("File not found at %s", "nonexistent.yml")
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('update_readme.logging.warning')
+    def test_load_yaml_error(self, mock_warning, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_warning.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
@@ -327,6 +327,12 @@ class TestUpdateReadme(unittest.TestCase):
         mock_fetch.return_value = "*(Error)*"
         self.assertEqual(fetch_recent_commits(), "*(Error)*")
 
+        # Invalid type case
+        mock_fetch.return_value = {"not": "a list"}
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
+
         # Empty case
         mock_fetch.return_value = []
         self.assertEqual(
@@ -375,6 +381,15 @@ class TestUpdateReadme(unittest.TestCase):
              "html_url": f"url{i}"} for i in range(10)]
         res = fetch_open_tasks()
         self.assertEqual(len(res.split('\n')), 5)
+
+    def test_sanitize_text(self):
+        """Test text sanitization for XSS and markdown injection."""
+        # Test HTML escaping
+        self.assertEqual(sanitize_text("<script>alert(1)</script>"), "&lt;script&gt;alert(1)&lt;/script&gt;")
+        # Test bracket replacing
+        self.assertEqual(sanitize_text("[link](url)"), "&#91;link&#93;(url)")
+        # Test combined
+        self.assertEqual(sanitize_text("A [test] with <b>bold</b>"), "A &#91;test&#93; with &lt;b&gt;bold&lt;/b&gt;")
 
     def test_update_block(self):
         """Test update block."""
