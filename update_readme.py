@@ -1,13 +1,18 @@
 """Module to update README.md with learning streaks and project info."""
+
 import datetime
+import html
 import json
+import logging
 import os
 import re
-import urllib.request
 import urllib.error
+import urllib.request
 from typing import Any, Dict, List, Set, Tuple, Union
 
 import yaml
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,26 +28,34 @@ def load_yaml(path: str) -> Dict[str, Any]:
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except FileNotFoundError:
-        print(f"Warning: File not found at {path}")
+        logging.warning("File not found at %s", path)
         return {}
     except yaml.YAMLError as e:
-        print(f"Warning: Error parsing YAML file at {path}: {e}")
+        logging.warning("Error parsing YAML file at %s: %s", path, e)
         return {}
+
+
+def sanitize_text(text: str) -> str:
+    """Sanitize external text for safe Markdown injection."""
+    sanitized = html.escape(text)
+    sanitized = sanitized.replace("[", "&#91;").replace("]", "&#93;")
+    return sanitized
+
 
 # 1. Streak & Longest Streak Calculation
 
 
 def _parse_log_dates(
-        log_entries: List[Dict[str, str]]) -> Dict[str, Set[datetime.date]]:
+    log_entries: List[Dict[str, str]],
+) -> Dict[str, Set[datetime.date]]:
     """Parse log dates."""
-    topic_dates = {}
+    topic_dates: Dict[str, Set[datetime.date]] = {}
     for entry in log_entries:
         date_str = entry.get("date")
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
@@ -68,8 +81,8 @@ def _calculate_longest_streak(sorted_dates: List[datetime.date]) -> int:
 
 
 def _calculate_current_streak(
-        dates_set: Set[datetime.date],
-        today: datetime.date) -> int:
+    dates_set: Set[datetime.date], today: datetime.date
+) -> int:
     """Calculate current streak."""
     yesterday = today - datetime.timedelta(days=1)
     current = 0
@@ -91,7 +104,8 @@ def _calculate_current_streak(
 
 
 def calculate_streaks_stats(
-        log_entries: List[Dict[str, str]]) -> Dict[str, Dict[str, int]]:
+    log_entries: List[Dict[str, str]],
+) -> Dict[str, Dict[str, int]]:
     """Calculate streak stats."""
     topic_dates = _parse_log_dates(log_entries)
     stats = {}
@@ -131,14 +145,17 @@ def render_streaks_md(streaks_stats: Dict[str, Dict[str, int]]) -> str:
     for topic, s in sorted_stats:
         emoji = "🔥" if s["current"] > 0 else "❄️"
         lines.append(
-            f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}")  # noqa: E501  # pylint: disable=line-too-long
+            f"- **{topic}**: {emoji} {s['current']} day{'s' if s['current'] != 1 else ''}"
+        )  # noqa: E501  # pylint: disable=line-too-long
 
     lines.append("\n**🏆 Longest Streak**")
     for topic, s in sorted_stats:
         lines.append(
-            f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}")  # noqa: E501
+            f"- **{topic}**: {s['longest']} day{'s' if s['longest'] != 1 else ''}"
+        )  # noqa: E501
 
     return "\n".join(lines)
+
 
 # 2. Render ASCII Progress Bar
 
@@ -154,6 +171,7 @@ def render_progress_bar(completed: int, total: int, length: int = 10) -> str:
     prog_bar = "█" * filled_length + "░" * (length - filled_length)
     return f"`{prog_bar} {percentage}%`"
 
+
 # 3. Learning Progress and Path Logic
 
 
@@ -166,7 +184,7 @@ def process_learning_journey(skills: Dict[str, Any]) -> Tuple[str, str]:
         "SQL": "🗄️ Database Development (SQL)",
         "React Native": "📱 Mobile Development (React Native)",
         "C#": "💻 C# Development (C#)",
-        "Algorithms": "🧠 Algorithms & Data Structures (C++)"
+        "Algorithms": "🧠 Algorithms & Data Structures (C++)",
     }
 
     for topic, sections in skills.items():
@@ -192,6 +210,7 @@ def process_learning_journey(skills: Dict[str, Any]) -> Tuple[str, str]:
 
     return "\n".join(progress_lines), "\n".join(path_lines)
 
+
 # 4. Project Portfolio Generator
 
 
@@ -206,10 +225,12 @@ def process_project_portfolio(projects: Dict[str, Any]) -> str:
         emoji = data.get("emoji", "🚀")
         lines.append(f"### {emoji} {name}")
         lines.append(
-            f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}")  # noqa: E501  # pylint: disable=line-too-long
-        lines.append(f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}")  # noqa: E501  # pylint: disable=line-too-long
+            f"- **{data.get('label_completed', 'Modules Implemented')}**: {completed}"
+        )  # noqa: E501  # pylint: disable=line-too-long
         lines.append(
-            f"- **Current Milestone**: {data.get('milestone', 'MVP')}")
+            f"- **{data.get('label_remaining', 'Major Features Remaining')}**: {remaining}"
+        )  # noqa: E501  # pylint: disable=line-too-long
+        lines.append(f"- **Current Milestone**: {data.get('milestone', 'MVP')}")
         lines.append("- **Current Focus**:")
         for item in data.get("focus", []):
             lines.append(f"  - {item}")
@@ -227,19 +248,21 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
     for event in events:
         if not isinstance(event, dict):
             continue
-        if event.get('type') != 'PushEvent':
+        if event.get("type") != "PushEvent":
             continue
-        repo_name = event.get('repo', {}).get('name', '').split('/')[-1]
-        for commit in event.get('payload', {}).get('commits', []):
-            message = commit.get('message', '').split('\n')[0]
-            sha = commit.get('sha', '')[:7]
-            if not message or message.startswith(
-                    "Merge") or sha in seen_commits:
+        repo_name = event.get("repo", {}).get("name", "").split("/")[-1]
+        for commit in event.get("payload", {}).get("commits", []):
+            message = commit.get("message", "").split("\n")[0]
+            sha = commit.get("sha", "")[:7]
+            if not message or message.startswith("Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
+            safe_repo = sanitize_text(repo_name)
+            safe_message = sanitize_text(message)
             commits.append(
-                f"- **{repo_name}**: {message} ([`{sha}`]"
-                f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501
+                f"- **{safe_repo}**: {safe_message} ([`{sha}`]"
+                f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))"
+            )  # noqa: E501
             if len(commits) >= 5:
                 return commits
     return commits
@@ -247,10 +270,10 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
 
 def _fetch_github_api(url: str) -> Union[str, Any]:
     """Fetch github API."""
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {"User-Agent": "mdbadrudduzaalif-profile-readme-updater"}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
-        headers['Authorization'] = f"token {token}"
+        headers["Authorization"] = f"token {token}"
 
     req = urllib.request.Request(url, headers=headers)
     try:
@@ -266,6 +289,7 @@ def _fetch_github_api(url: str) -> Union[str, Any]:
     except urllib.error.URLError as e:
         return f"*(Failed API request: {str(e)})*"
 
+
 # 5. Fetch GitHub Commits
 
 
@@ -276,10 +300,14 @@ def fetch_recent_commits() -> str:
     if isinstance(events, str) and events.startswith("*("):
         return events  # return the error string
 
+    if not isinstance(events, list):
+        return "No recent public commits found."
+
     commits = _extract_commits(events)
     if not commits:
         return "No recent public commits found."
     return "\n".join(commits)
+
 
 # 6. Fetch Open Issues (Tasks)
 
@@ -292,23 +320,28 @@ def fetch_open_tasks() -> str:
         return issues  # return the error string
 
     if not isinstance(issues, list):
-        return ("*No active tasks from projects. Create a GitHub Issue "
-                "in this repository to track your next task!*")
+        return (
+            "*No active tasks from projects. Create a GitHub Issue "
+            "in this repository to track your next task!*"
+        )
 
     tasks = []
     for issue in issues:
         if not isinstance(issue, dict):
             continue
-        if 'pull_request' not in issue:
-            title = issue.get('title', '')
-            number = issue.get('number', '')
-            html_url = issue.get('html_url', '')
-            tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
+        if "pull_request" not in issue:
+            title = issue.get("title", "")
+            number = issue.get("number", "")
+            html_url = issue.get("html_url", "")
+            safe_title = sanitize_text(title)
+            tasks.append(f"- [ ] {safe_title} ([#{number}]({html_url}))")
         if len(tasks) >= 5:
             break
     if not tasks:
-        return ("*No active tasks from projects. Create a GitHub Issue "
-                "in this repository to track your next task!*")
+        return (
+            "*No active tasks from projects. Create a GitHub Issue "
+            "in this repository to track your next task!*"
+        )
     return "\n".join(tasks)
 
 
@@ -325,7 +358,9 @@ def main() -> None:
     """Main function."""
     # pylint: disable=too-many-locals
     if not os.environ.get("GITHUB_TOKEN"):
-        print("Warning: GITHUB_TOKEN environment variable not found. Rate limiting might occur.")  # noqa: E501  # pylint: disable=line-too-long
+        logging.warning(
+            "GITHUB_TOKEN environment variable not found. Rate limiting might occur."
+        )
 
     # Load YAML databases
     learning_log = load_yaml(LEARNING_LOG_PATH)
@@ -349,7 +384,8 @@ def main() -> None:
     for a in agents_data.get("agents", []):
         emoji = "🟢" if a.get("status") == "Active" else "🟡"
         agent_lines.append(
-            f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}")  # noqa: E501
+            f"- **{a.get('name')}** ({emoji} {a.get('status')}): {a.get('purpose')}"
+        )  # noqa: E501
     agents_md = "\n".join(agent_lines)
 
     # Process reflections from dates studied
@@ -357,9 +393,9 @@ def main() -> None:
     completed_today_lines = []
     for r in today_refl:
         completed_today_lines.append(
-            f"- Logged study for {r.get('topic')} ({r.get('date')})")
-    reflections_md = "**Completed Today**:\n" + \
-        "\n".join(completed_today_lines)
+            f"- Logged study for {r.get('topic')} ({r.get('date')})"
+        )
+    reflections_md = "**Completed Today**:\n" + "\n".join(completed_today_lines)
 
     # API Fetches
     recent_commits = fetch_recent_commits()
@@ -394,9 +430,9 @@ def main() -> None:
     if content != old_content:
         with open(README_PATH, "w", encoding="utf-8") as f:
             f.write(content)
-        print("README updated successfully.")
+        logging.info("README updated successfully.")
     else:
-        print("README content is already up-to-date. No rewrite needed.")
+        logging.info("README content is already up-to-date. No rewrite needed.")
 
 
 if __name__ == "__main__":  # pragma: no cover
