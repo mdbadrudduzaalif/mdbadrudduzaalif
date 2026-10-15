@@ -18,7 +18,8 @@ from update_readme import (
     main,
     calculate_streaks_stats,
     render_streaks_md,
-    _parse_log_dates
+    _parse_log_dates,
+    sanitize_markdown
 )
 
 
@@ -47,6 +48,14 @@ class TestUpdateReadme(unittest.TestCase):
 
         if "TZ_OFFSET_HOURS" in os.environ:
             del os.environ["TZ_OFFSET_HOURS"]
+
+    def test_sanitize_markdown(self):
+        """Test sanitize_markdown function."""
+        self.assertEqual(sanitize_markdown("Hello"), "Hello")
+        self.assertEqual(sanitize_markdown("Hello <world>"), "Hello &lt;world&gt;")
+        self.assertEqual(sanitize_markdown("Link [text](url)"), "Link &#91;text&#93;(url)")
+        self.assertEqual(sanitize_markdown(None), None)
+        self.assertEqual(sanitize_markdown(123), 123)
 
     def test_calculate_current_streak_invalid_tz(self):
         """Test with invalid tz string."""
@@ -326,6 +335,12 @@ class TestUpdateReadme(unittest.TestCase):
         # Error case
         mock_fetch.return_value = "*(Error)*"
         self.assertEqual(fetch_recent_commits(), "*(Error)*")
+
+        # Not list case
+        mock_fetch.return_value = {"message": "Not Found"}
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
 
         # Empty case
         mock_fetch.return_value = []

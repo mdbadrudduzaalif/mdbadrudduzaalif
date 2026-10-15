@@ -131,10 +131,10 @@ Building two production-oriented software platforms:
 ### 🤖 AI Agent Lab
 I am experimenting with specialized local AI agents to automate workflows and optimize productivity:
 <!-- START_AGENTS -->
-- **Profile Agent** (🟢 Active): Updates README statistics & reflections
-- **Research Agent** (🟡 Idle): Summarizes academic papers & AIUB expectations
-- **Learning Agent** (🟢 Active): Analyzes learning logs & calculates strengths
-- **Takaa Agent** (🟡 Idle): Tracks project roadmaps & updates EAS configs
+- **Profile Agent** (🟢 Active): Updates README statistics &amp; reflections
+- **Research Agent** (🟡 Idle): Summarizes academic papers &amp; AIUB expectations
+- **Learning Agent** (🟢 Active): Analyzes learning logs &amp; calculates strengths
+- **Takaa Agent** (🟡 Idle): Tracks project roadmaps &amp; updates EAS configs
 <!-- END_AGENTS -->
 
 ---
