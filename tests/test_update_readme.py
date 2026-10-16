@@ -143,6 +143,15 @@ class TestUpdateReadme(unittest.TestCase):
         ]
         self.assertEqual(_calculate_longest_streak(dates_consecutive), 3)
 
+    def test_escape_markdown(self):
+        """Test escape_markdown function."""
+        from update_readme import escape_markdown
+        self.assertEqual(escape_markdown(""), "")
+        self.assertEqual(
+            escape_markdown("<script> [test]"),
+            "<script> &#91;test&#93;"
+        )
+
     def test_longest_streak_duplicate_dates(self):
         """Test longest streak duplicate dates."""
         dates_duplicate = [
@@ -243,8 +252,8 @@ class TestUpdateReadme(unittest.TestCase):
         """Test extracting commits."""
         events = [
             {"type": "PushEvent",
-             "repo": {"name": "test/repo"},
-             "payload": {"commits": [{"message": "msg1",
+             "repo": {"name": "test/<repo>"},
+             "payload": {"commits": [{"message": "<msg1>[X]",
                                       "sha": "1234567890"},
                                      {"message": "Merge pull request",
                                       "sha": "abcdef"}]}},
@@ -253,7 +262,8 @@ class TestUpdateReadme(unittest.TestCase):
         ]
         commits = _extract_commits(events)
         self.assertEqual(len(commits), 1)
-        self.assertIn("msg1", commits[0])
+        self.assertIn("&lt;msg1&gt;&#91;X&#93;", commits[0])
+        self.assertIn("&lt;repo&gt;", commits[0])
 
         # Test invalid input
         self.assertEqual(_extract_commits({"invalid": "type"}), [])
@@ -333,6 +343,12 @@ class TestUpdateReadme(unittest.TestCase):
             fetch_recent_commits(),
             "No recent public commits found.")
 
+        # Invalid type case
+        mock_fetch.return_value = {"invalid": "type"}
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
+
         # Success case
         mock_fetch.return_value = [{"type": "PushEvent", "repo": {
             "name": "r"},
@@ -359,12 +375,12 @@ class TestUpdateReadme(unittest.TestCase):
                                     "number": 1,
                                     "html_url": "url",
                                     "pull_request": {}},
-                                   {"title": "task2",
+                                   {"title": "<task2>[Y]",
                                     "number": 2,
                                     "html_url": "url2"},
                                    "invalid_issue"]
         res = fetch_open_tasks()
-        self.assertIn("task2", res)
+        self.assertIn("&lt;task2&gt;&#91;Y&#93;", res)
         self.assertNotIn("task1", res)
 
     @patch('update_readme._fetch_github_api')
