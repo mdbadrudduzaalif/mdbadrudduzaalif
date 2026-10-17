@@ -5,6 +5,7 @@ import os
 import re
 import urllib.request
 import urllib.error
+import html
 from typing import Any, Dict, List, Set, Tuple, Union
 
 import yaml
@@ -15,6 +16,12 @@ README_PATH = os.path.join(BASE_DIR, "README.md")
 LEARNING_LOG_PATH = os.path.join(BASE_DIR, "data", "learning_log.yml")
 PROJECTS_PATH = os.path.join(BASE_DIR, "data", "projects.yml")
 AGENTS_PATH = os.path.join(BASE_DIR, "data", "agents.yml")
+
+
+def sanitize_text(text: str) -> str:
+    """Sanitize text to prevent Markdown injection and XSS."""
+    escaped = html.escape(text)
+    return escaped.replace("[", "&#91;").replace("]", "&#93;")
 
 
 def load_yaml(path: str) -> Dict[str, Any]:
@@ -35,14 +42,13 @@ def load_yaml(path: str) -> Dict[str, Any]:
 def _parse_log_dates(
         log_entries: List[Dict[str, str]]) -> Dict[str, Set[datetime.date]]:
     """Parse log dates."""
-    topic_dates = {}
+    topic_dates: Dict[str, Set[datetime.date]] = {}
     for entry in log_entries:
         date_str = entry.get("date")
         topic = entry.get("topic")
         if date_str and topic:
             try:
-                date_obj = datetime.datetime.strptime(
-                    date_str, "%Y-%m-%d").date()
+                date_obj = datetime.date.fromisoformat(date_str)
                 topic_dates.setdefault(topic, set()).add(date_obj)
             except ValueError:
                 continue
@@ -237,8 +243,9 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
                     "Merge") or sha in seen_commits:
                 continue
             seen_commits.add(sha)
+            safe_message = sanitize_text(message)
             commits.append(
-                f"- **{repo_name}**: {message} ([`{sha}`]"
+                f"- **{repo_name}**: {safe_message} ([`{sha}`]"
                 f"(https://github.com/mdbadrudduzaalif/{repo_name}/commit/{sha}))")  # noqa: E501
             if len(commits) >= 5:
                 return commits
@@ -247,7 +254,7 @@ def _extract_commits(events: List[Dict[str, Any]]) -> Union[str, List[str]]:
 
 def _fetch_github_api(url: str) -> Union[str, Any]:
     """Fetch github API."""
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'mdbadrudduzaalif-profile-readme-updater'}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers['Authorization'] = f"token {token}"
@@ -276,6 +283,9 @@ def fetch_recent_commits() -> str:
     if isinstance(events, str) and events.startswith("*("):
         return events  # return the error string
 
+    if not isinstance(events, list):
+        return "No recent public commits found."
+
     commits = _extract_commits(events)
     if not commits:
         return "No recent public commits found."
@@ -303,7 +313,8 @@ def fetch_open_tasks() -> str:
             title = issue.get('title', '')
             number = issue.get('number', '')
             html_url = issue.get('html_url', '')
-            tasks.append(f"- [ ] {title} ([#{number}]({html_url}))")
+            safe_title = sanitize_text(title)
+            tasks.append(f"- [ ] {safe_title} ([#{number}]({html_url}))")
         if len(tasks) >= 5:
             break
     if not tasks:

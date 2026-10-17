@@ -4,6 +4,7 @@ import datetime
 import os
 from unittest.mock import patch, mock_open, MagicMock
 from update_readme import (
+    README_PATH,
     _calculate_longest_streak,
     _calculate_current_streak,
     render_progress_bar,
@@ -18,13 +19,25 @@ from update_readme import (
     main,
     calculate_streaks_stats,
     render_streaks_md,
-    _parse_log_dates
+    _parse_log_dates,
+    sanitize_text
 )
 
 
 class TestUpdateReadme(unittest.TestCase):
     # pylint: disable=too-many-public-methods
     """Test suite for update_readme."""
+
+    def test_sanitize_text(self):
+        """Test text sanitization for XSS and Markdown injection."""
+        self.assertEqual(sanitize_text("normal text"), "normal text")
+        self.assertEqual(
+            sanitize_text("<script>alert('xss')</script>"),
+            "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;")
+        self.assertEqual(
+            sanitize_text("[Link](http://malicious.com)"),
+            "&#91;Link&#93;(http://malicious.com)")
+        self.assertEqual(sanitize_text("A & B"), "A &amp; B")
 
     def test_calculate_current_streak_head(self):
         """Test streak head."""
@@ -105,7 +118,6 @@ class TestUpdateReadme(unittest.TestCase):
         today = datetime.datetime.now(tz).date()
         yesterday = today - datetime.timedelta(days=1)
 
-        dates = {today, yesterday}
         stats = calculate_streaks_stats([
             {"date": str(today), "topic": "A"},
             {"date": str(yesterday), "topic": "A"}
@@ -274,7 +286,6 @@ class TestUpdateReadme(unittest.TestCase):
     def test_fetch_github_api_success(self, mock_urlopen, mock_env):
         """Test fetch API success."""
         mock_env.return_value = "fake_token"
-        """Test fetch API success."""
         mock_response = MagicMock()
         mock_response.read.return_value = b'{"key": "value"}'
         mock_response.__enter__.return_value = mock_response
@@ -329,6 +340,12 @@ class TestUpdateReadme(unittest.TestCase):
 
         # Empty case
         mock_fetch.return_value = []
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
+
+        # Invalid type case
+        mock_fetch.return_value = {"invalid": "type"}
         self.assertEqual(
             fetch_recent_commits(),
             "No recent public commits found.")
@@ -469,7 +486,6 @@ class TestUpdateReadme(unittest.TestCase):
         ]
 
         main()
-        from update_readme import README_PATH
         mock_file.assert_called_with(README_PATH, "w", encoding="utf-8")
 
 
