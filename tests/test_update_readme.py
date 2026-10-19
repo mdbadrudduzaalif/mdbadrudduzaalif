@@ -244,7 +244,9 @@ class TestUpdateReadme(unittest.TestCase):
         events = [
             {"type": "PushEvent",
              "repo": {"name": "test/repo"},
-             "payload": {"commits": [{"message": "msg1",
+             "payload": {"commits": [{"message": "msg1 <script>",
+                                      "sha": "1234567890"},
+                                     {"message": "msg1 <script>",
                                       "sha": "1234567890"},
                                      {"message": "Merge pull request",
                                       "sha": "abcdef"}]}},
@@ -253,10 +255,16 @@ class TestUpdateReadme(unittest.TestCase):
         ]
         commits = _extract_commits(events)
         self.assertEqual(len(commits), 1)
-        self.assertIn("msg1", commits[0])
+        self.assertIn("msg1 &lt;script&gt;", commits[0])
 
         # Test invalid input
         self.assertEqual(_extract_commits({"invalid": "type"}), [])
+
+    def test_sanitize_md(self):
+        """Test markdown sanitization."""
+        from update_readme import sanitize_md
+        self.assertEqual(sanitize_md(""), "")
+        self.assertEqual(sanitize_md("Hello <script> [Link](url)"), "Hello &lt;script&gt; &#91;Link&#93;(url)")
 
     def test_extract_commits_limit(self):
         """Test extracting commits limit."""
@@ -326,6 +334,12 @@ class TestUpdateReadme(unittest.TestCase):
         # Error case
         mock_fetch.return_value = "*(Error)*"
         self.assertEqual(fetch_recent_commits(), "*(Error)*")
+
+        # Not list case
+        mock_fetch.return_value = {"message": "Not Found"}
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
 
         # Empty case
         mock_fetch.return_value = []
