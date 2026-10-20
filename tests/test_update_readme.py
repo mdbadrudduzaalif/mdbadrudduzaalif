@@ -164,21 +164,21 @@ class TestUpdateReadme(unittest.TestCase):
         self.assertEqual(data, {"key": "value"})
 
     @patch('builtins.open', side_effect=FileNotFoundError)
-    @patch('builtins.print')
-    def test_load_yaml_not_found(self, mock_print, _mock_file):
+    @patch('logging.warning')
+    def test_load_yaml_not_found(self, mock_warning, _mock_file):
         """Test load_yaml file not found."""
         data = load_yaml("nonexistent.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called_with(
-            "Warning: File not found at nonexistent.yml")
+        mock_warning.assert_called_with(
+            "File not found at %s", "nonexistent.yml")
 
     @patch('builtins.open', new_callable=mock_open, read_data="[")
-    @patch('builtins.print')
-    def test_load_yaml_error(self, mock_print, _mock_file):
+    @patch('logging.warning')
+    def test_load_yaml_error(self, mock_warning, _mock_file):
         """Test load_yaml parse error."""
         data = load_yaml("bad.yml")
         self.assertEqual(data, {})
-        mock_print.assert_called()
+        mock_warning.assert_called()
 
     def test_parse_log_dates(self):
         """Test parsing log dates."""
@@ -244,7 +244,7 @@ class TestUpdateReadme(unittest.TestCase):
         events = [
             {"type": "PushEvent",
              "repo": {"name": "test/repo"},
-             "payload": {"commits": [{"message": "msg1",
+             "payload": {"commits": [{"message": "msg1 <script>",
                                       "sha": "1234567890"},
                                      {"message": "Merge pull request",
                                       "sha": "abcdef"}]}},
@@ -253,7 +253,7 @@ class TestUpdateReadme(unittest.TestCase):
         ]
         commits = _extract_commits(events)
         self.assertEqual(len(commits), 1)
-        self.assertIn("msg1", commits[0])
+        self.assertIn("msg1 &lt;script&gt;", commits[0])
 
         # Test invalid input
         self.assertEqual(_extract_commits({"invalid": "type"}), [])
@@ -327,6 +327,12 @@ class TestUpdateReadme(unittest.TestCase):
         mock_fetch.return_value = "*(Error)*"
         self.assertEqual(fetch_recent_commits(), "*(Error)*")
 
+        # Invalid type case
+        mock_fetch.return_value = {"invalid": "type"}
+        self.assertEqual(
+            fetch_recent_commits(),
+            "No recent public commits found.")
+
         # Empty case
         mock_fetch.return_value = []
         self.assertEqual(
@@ -359,12 +365,12 @@ class TestUpdateReadme(unittest.TestCase):
                                     "number": 1,
                                     "html_url": "url",
                                     "pull_request": {}},
-                                   {"title": "task2",
+                                   {"title": "task2 <test> [bracket]",
                                     "number": 2,
                                     "html_url": "url2"},
                                    "invalid_issue"]
         res = fetch_open_tasks()
-        self.assertIn("task2", res)
+        self.assertIn("task2 &lt;test&gt; &#91;bracket&#93;", res)
         self.assertNotIn("task1", res)
 
     @patch('update_readme._fetch_github_api')
